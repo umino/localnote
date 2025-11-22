@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useEffect, useState, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
-import { History } from 'lucide-react';
+import { History, Copy } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
 
 export function Editor() {
@@ -83,6 +83,22 @@ export function Editor() {
                         outline: 'none'
                     }}
                 />
+                <button
+                    onClick={async () => {
+                        try {
+                            await navigator.clipboard.writeText(content);
+                            toast.success('Copied to clipboard');
+                        } catch (error) {
+                            console.error('Failed to copy', error);
+                            toast.error('Failed to copy');
+                        }
+                    }}
+                    title="Copy Content"
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', marginRight: '0.5rem' }}
+                    className="hover:text-accent-color"
+                >
+                    <Copy size={20} />
+                </button>
                 <button
                     onClick={() => setShowHistory(!showHistory)}
                     title="View History"

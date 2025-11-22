@@ -48,10 +48,10 @@ export function HistoryPanel({ fileId, onRestore }: HistoryPanelProps) {
                         {entry.content}
                     </div>
                     <button
-                        onClick={() => {
-                            if (confirm('Restore this version? Current changes will be saved as a new version.')) {
-                                onRestore(entry.content);
-                            }
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // confirm()を使用すると無限ループが発生するため削除
+                            onRestore(entry.content);
                         }}
                         style={{
                             alignSelf: 'flex-start',
