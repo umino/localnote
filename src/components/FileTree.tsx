@@ -2,7 +2,7 @@ import type { Folder, TextFile } from '../types';
 import { useStore } from '../store/useStore';
 import { ChevronRight, ChevronDown, FileText, Folder as FolderIcon, FolderOpen, Trash2 } from 'lucide-react';
 import { db } from '../db';
-import { DndContext, type DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import React from 'react';
 
