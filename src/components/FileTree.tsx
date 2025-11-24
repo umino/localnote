@@ -2,7 +2,8 @@ import type { Folder, TextFile } from '../types';
 import { useStore } from '../store/useStore';
 import { ChevronRight, ChevronDown, FileText, Folder as FolderIcon, FolderOpen, Trash2 } from 'lucide-react';
 import { db } from '../db';
-import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
+import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import React from 'react';
 
@@ -13,16 +14,24 @@ interface FileTreeProps {
     level?: number;
 }
 
-// Draggable/Droppable Item Components
+// Draggable/Sortable Item Components
 function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder, children }: any) {
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [folderName, setFolderName] = React.useState(folder.name);
     const { editingItemId, editingItemType, setEditingItem } = useStore();
 
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({
         id: `folder-${folder.id}`,
         data: { type: 'folder', id: folder.id, parentId: folder.parentId }
     });
+
     const { setNodeRef: setDroppableRef, isOver } = useDroppable({
         id: `folder-drop-${folder.id}`,
         data: { type: 'folder', id: folder.id }
@@ -30,7 +39,9 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
 
     const style = {
         transform: CSS.Translate.toString(transform),
+        transition,
         backgroundColor: isOver ? 'rgba(59, 130, 246, 0.2)' : undefined,
+        opacity: isDragging ? 0.5 : 1,
     };
 
     // Auto-edit when this folder is newly created
@@ -141,19 +152,28 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
     );
 }
 
-// Draggable File Item
+// Draggable/Sortable File Item
 function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }: any) {
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [fileTitle, setFileTitle] = React.useState(file.title);
     const { editingItemId, editingItemType, setEditingItem } = useStore();
 
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({
         id: `file-${file.id}`,
         data: { type: 'file', id: file.id, folderId: file.folderId }
     });
 
     const style = {
         transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
     };
 
     // Auto-edit when this file is newly created
@@ -281,36 +301,40 @@ export function FileTree({ folders, files, parentId = null, level = 0 }: FileTre
     // Render content
     const content = (
         <div style={{ paddingLeft: level > 0 ? '1rem' : 0 }}>
-            {currentFolders.map((folder) => {
-                const isExpanded = expandedFolderIds.includes(folder.id!);
-                return (
-                    <DraggableFolder
-                        key={folder.id}
-                        folder={folder}
-                        isExpanded={isExpanded}
-                        toggleFolder={toggleFolder}
-                        handleDeleteFolder={handleDeleteFolder}
-                    >
-                        {isExpanded && (
-                            <FileTree
-                                folders={folders}
-                                files={files}
-                                parentId={folder.id!}
-                                level={level + 1}
-                            />
-                        )}
-                    </DraggableFolder>
-                );
-            })}
-            {currentFiles.map((file) => (
-                <DraggableFile
-                    key={file.id}
-                    file={file}
-                    activeFileId={activeFileId}
-                    setActiveFileId={setActiveFileId}
-                    handleDeleteFile={handleDeleteFile}
-                />
-            ))}
+            <SortableContext items={currentFolders.map(f => `folder-${f.id}`)} strategy={verticalListSortingStrategy}>
+                {currentFolders.map((folder) => {
+                    const isExpanded = expandedFolderIds.includes(folder.id!);
+                    return (
+                        <DraggableFolder
+                            key={folder.id}
+                            folder={folder}
+                            isExpanded={isExpanded}
+                            toggleFolder={toggleFolder}
+                            handleDeleteFolder={handleDeleteFolder}
+                        >
+                            {isExpanded && (
+                                <FileTree
+                                    folders={folders}
+                                    files={files}
+                                    parentId={folder.id!}
+                                    level={level + 1}
+                                />
+                            )}
+                        </DraggableFolder>
+                    );
+                })}
+            </SortableContext>
+            <SortableContext items={currentFiles.map(f => `file-${f.id}`)} strategy={verticalListSortingStrategy}>
+                {currentFiles.map((file) => (
+                    <DraggableFile
+                        key={file.id}
+                        file={file}
+                        activeFileId={activeFileId}
+                        setActiveFileId={setActiveFileId}
+                        handleDeleteFile={handleDeleteFile}
+                    />
+                ))}
+            </SortableContext>
         </div>
     );
 

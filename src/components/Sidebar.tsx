@@ -4,7 +4,8 @@ import { FileTree } from './FileTree';
 import { Plus, FolderPlus, Download, Upload } from 'lucide-react';
 import { exportData, importData } from '../utils/dataTransfer';
 import { useRef } from 'react';
-import { DndContext, type DragEndEvent, useDroppable } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent, useDroppable, closestCenter } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useStore } from '../store/useStore';
 
 export function Sidebar() {
@@ -89,6 +90,57 @@ export function Sidebar() {
         const activeId = active.id as string;
         const overId = over.id as string;
 
+        // Reordering Logic
+        // Only reorder if we are NOT dropping onto a "folder-drop-" target (which implies nesting)
+        if (activeId !== overId && !overId.startsWith('folder-drop-')) {
+            const activeType = active.data.current?.type;
+            const overType = over.data.current?.type;
+
+            // Reorder Folders
+            if (activeType === 'folder' && overType === 'folder') {
+                const activeFolder = folders?.find(f => f.id === active.data.current?.id);
+                const overFolder = folders?.find(f => f.id === over.data.current?.id);
+
+                if (activeFolder && overFolder && activeFolder.parentId === overFolder.parentId) {
+                    const siblings = folders?.filter(f => f.parentId === activeFolder.parentId)
+                        .sort((a, b) => (a.order || 0) - (b.order || 0)) || [];
+
+                    const oldIndex = siblings.findIndex(f => f.id === activeFolder.id);
+                    const newIndex = siblings.findIndex(f => f.id === overFolder.id);
+
+                    const newOrder = arrayMove(siblings, oldIndex, newIndex);
+
+                    // Update order in DB
+                    await Promise.all(newOrder.map((folder, index) =>
+                        db.folders.update(folder.id!, { order: index })
+                    ));
+                    return;
+                }
+            }
+
+            // Reorder Files
+            if (activeType === 'file' && overType === 'file') {
+                const activeFile = files?.find(f => f.id === active.data.current?.id);
+                const overFile = files?.find(f => f.id === over.data.current?.id);
+
+                if (activeFile && overFile && activeFile.folderId === overFile.folderId) {
+                    const siblings = files?.filter(f => f.folderId === activeFile.folderId)
+                        .sort((a, b) => (a.order || 0) - (b.order || 0)) || [];
+
+                    const oldIndex = siblings.findIndex(f => f.id === activeFile.id);
+                    const newIndex = siblings.findIndex(f => f.id === overFile.id);
+
+                    const newOrder = arrayMove(siblings, oldIndex, newIndex);
+
+                    // Update order in DB
+                    await Promise.all(newOrder.map((file, index) =>
+                        db.files.update(file.id!, { order: index })
+                    ));
+                    return;
+                }
+            }
+        }
+
         // File or Folder dropped to Root
         if (overId === 'root-drop-zone') {
             if (activeId.startsWith('file-')) {
@@ -106,9 +158,9 @@ export function Sidebar() {
         }
 
         // File dropped into Folder
-        if (activeId.startsWith('file-') && overId.startsWith('folder-drop-')) {
+        if (activeId.startsWith('file-') && (overId.startsWith('folder-drop-') || overId.startsWith('folder-'))) {
             const fileId = parseInt(activeId.replace('file-', ''));
-            const folderId = parseInt(overId.replace('folder-drop-', ''));
+            const folderId = parseInt(overId.replace('folder-drop-', '').replace('folder-', ''));
             console.log('Moving file', fileId, 'to folder', folderId);
 
             if (active.data.current?.folderId !== folderId) {
@@ -118,9 +170,9 @@ export function Sidebar() {
         }
 
         // Folder dropped into Folder
-        if (activeId.startsWith('folder-') && overId.startsWith('folder-drop-')) {
+        if (activeId.startsWith('folder-') && (overId.startsWith('folder-drop-') || overId.startsWith('folder-'))) {
             const draggedFolderId = parseInt(activeId.replace('folder-', ''));
-            const targetFolderId = parseInt(overId.replace('folder-drop-', ''));
+            const targetFolderId = parseInt(overId.replace('folder-drop-', '').replace('folder-', ''));
             console.log('Moving folder', draggedFolderId, 'to folder', targetFolderId);
 
             if (draggedFolderId !== targetFolderId && active.data.current?.parentId !== targetFolderId) {
@@ -162,7 +214,7 @@ export function Sidebar() {
     };
 
     return (
-        <DndContext onDragEnd={handleDragEnd}>
+        <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button onClick={createFile} title="New File" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem' }}>
