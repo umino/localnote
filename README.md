@@ -71,3 +71,13 @@ export default defineConfig([
   },
 ])
 ```
+
+## Docker
+
+```bash
+docker build -t localnote .
+```
+
+### Docker Hub
+
+https://hub.docker.com/repository/docker/uminosinpei/localnote/general
