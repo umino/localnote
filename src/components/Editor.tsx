@@ -15,15 +15,28 @@ export function Editor() {
     const lastSavedContentRef = useRef('');
     const contentRef = useRef('');
 
+    const [title, setTitle] = useState('');
+    const titleRef = useRef('');
+    const lastSavedTitleRef = useRef('');
+    const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         if (file) {
             setContent(file.content);
             lastSavedContentRef.current = file.content;
             contentRef.current = file.content;
+
+            setTitle(file.title);
+            lastSavedTitleRef.current = file.title;
+            titleRef.current = file.title;
         } else {
             setContent('');
             lastSavedContentRef.current = '';
             contentRef.current = '';
+
+            setTitle('');
+            lastSavedTitleRef.current = '';
+            titleRef.current = '';
         }
     }, [file?.id]); // Only reset when file ID changes
 
@@ -35,6 +48,14 @@ export function Editor() {
             }
             if (activeFileId && contentRef.current !== lastSavedContentRef.current) {
                 saveFile(activeFileId, contentRef.current, false);
+            }
+
+            // Save pending title changes
+            if (titleSaveTimeoutRef.current) {
+                clearTimeout(titleSaveTimeoutRef.current);
+            }
+            if (activeFileId && titleRef.current !== lastSavedTitleRef.current) {
+                db.files.update(activeFileId, { title: titleRef.current, updatedAt: new Date() });
             }
         };
     }, [activeFileId]);
@@ -52,6 +73,22 @@ export function Editor() {
                 await saveFile(activeFileId, newContent);
             }
         }, 60000); // 60 seconds auto-save
+    };
+
+    const handleTitleChange = (newTitle: string) => {
+        setTitle(newTitle);
+        titleRef.current = newTitle;
+
+        if (titleSaveTimeoutRef.current) {
+            clearTimeout(titleSaveTimeoutRef.current);
+        }
+
+        titleSaveTimeoutRef.current = setTimeout(async () => {
+            if (activeFileId && newTitle !== lastSavedTitleRef.current) {
+                await db.files.update(activeFileId, { title: newTitle, updatedAt: new Date() });
+                lastSavedTitleRef.current = newTitle;
+            }
+        }, 500); // 500ms debounce for title
     };
 
     const saveFile = async (id: number, newContent: string, updateLastSaved = true) => {
@@ -89,8 +126,8 @@ export function Editor() {
             <Toaster position="bottom-right" theme="dark" />
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <input
-                    value={file.title}
-                    onChange={(e) => db.files.update(activeFileId, { title: e.target.value, updatedAt: new Date() })}
+                    value={title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
                     style={{
                         background: 'transparent',
                         border: 'none',
