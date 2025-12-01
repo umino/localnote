@@ -13,19 +13,35 @@ export function Editor() {
     const [showHistory, setShowHistory] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedContentRef = useRef('');
+    const contentRef = useRef('');
 
     useEffect(() => {
         if (file) {
             setContent(file.content);
             lastSavedContentRef.current = file.content;
+            contentRef.current = file.content;
         } else {
             setContent('');
             lastSavedContentRef.current = '';
+            contentRef.current = '';
         }
     }, [file?.id]); // Only reset when file ID changes
 
+    // Save on unmount or activeFileId change
+    useEffect(() => {
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+            if (activeFileId && contentRef.current !== lastSavedContentRef.current) {
+                saveFile(activeFileId, contentRef.current, false);
+            }
+        };
+    }, [activeFileId]);
+
     const handleContentChange = (newContent: string) => {
         setContent(newContent);
+        contentRef.current = newContent;
 
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
@@ -35,10 +51,10 @@ export function Editor() {
             if (activeFileId && newContent !== lastSavedContentRef.current) {
                 await saveFile(activeFileId, newContent);
             }
-        }, 5000); // 5 seconds auto-save
+        }, 60000); // 60 seconds auto-save
     };
 
-    const saveFile = async (id: number, newContent: string) => {
+    const saveFile = async (id: number, newContent: string, updateLastSaved = true) => {
         try {
             await db.transaction('rw', db.files, db.history, async () => {
                 await db.files.update(id, { content: newContent, updatedAt: new Date() });
@@ -48,7 +64,9 @@ export function Editor() {
                     timestamp: new Date(),
                 });
             });
-            lastSavedContentRef.current = newContent;
+            if (updateLastSaved) {
+                lastSavedContentRef.current = newContent;
+            }
             toast.success('Saved');
         } catch (error) {
             console.error('Failed to save', error);
