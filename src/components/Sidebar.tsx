@@ -4,7 +4,15 @@ import { FileTree } from './FileTree';
 import { Plus, FolderPlus, Download, Upload } from 'lucide-react';
 import { exportData, importData } from '../utils/dataTransfer';
 import { useRef } from 'react';
-import { DndContext, type DragEndEvent, useDroppable, closestCenter } from '@dnd-kit/core';
+import {
+    DndContext,
+    type DragEndEvent,
+    useDroppable,
+    closestCenter,
+    useSensor,
+    useSensors,
+    PointerSensor
+} from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useStore } from '../store/useStore';
 
@@ -13,6 +21,14 @@ export function Sidebar() {
     const files = useLiveQuery(() => db.files.toArray());
     const { selectedFolderId } = useStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // 5px movement required to start dragging
+            },
+        })
+    );
 
     const createFolder = async () => {
         // Get max order for folders in the selected parent
@@ -123,19 +139,49 @@ export function Sidebar() {
                 const activeFile = files?.find(f => f.id === active.data.current?.id);
                 const overFile = files?.find(f => f.id === over.data.current?.id);
 
-                if (activeFile && overFile && activeFile.folderId === overFile.folderId) {
-                    const siblings = files?.filter(f => f.folderId === activeFile.folderId)
-                        .sort((a, b) => (a.order || 0) - (b.order || 0)) || [];
+                if (activeFile && overFile) {
+                    if (activeFile.folderId === overFile.folderId) {
+                        // Same folder reordering
+                        const siblings = files?.filter(f => f.folderId === activeFile.folderId)
+                            .sort((a, b) => (a.order || 0) - (b.order || 0)) || [];
 
-                    const oldIndex = siblings.findIndex(f => f.id === activeFile.id);
-                    const newIndex = siblings.findIndex(f => f.id === overFile.id);
+                        const oldIndex = siblings.findIndex(f => f.id === activeFile.id);
+                        const newIndex = siblings.findIndex(f => f.id === overFile.id);
 
-                    const newOrder = arrayMove(siblings, oldIndex, newIndex);
+                        const newOrder = arrayMove(siblings, oldIndex, newIndex);
 
-                    // Update order in DB
-                    await Promise.all(newOrder.map((file, index) =>
-                        db.files.update(file.id!, { order: index })
-                    ));
+                        await Promise.all(newOrder.map((file, index) =>
+                            db.files.update(file.id!, { order: index })
+                        ));
+                    } else {
+                        // Cross-folder reordering
+                        console.log('Cross-folder move: moving file', activeFile.id, 'to folder', overFile.folderId);
+
+                        // 1. Get siblings in the TARGET folder
+                        const targetSiblings = files?.filter(f => f.folderId === overFile.folderId)
+                            .sort((a, b) => (a.order || 0) - (b.order || 0)) || [];
+
+                        // 2. Insert the active file after the over file
+                        const overIndex = targetSiblings.findIndex(f => f.id === overFile.id);
+                        const newSiblings = [...targetSiblings];
+                        newSiblings.splice(overIndex + 1, 0, activeFile);
+
+                        // 3. Update all files in the target folder with new parent and order
+                        await Promise.all(newSiblings.map((file, index) =>
+                            db.files.update(file.id!, {
+                                folderId: overFile.folderId,
+                                order: index,
+                                updatedAt: file.id === activeFile.id ? new Date() : file.updatedAt
+                            })
+                        ));
+
+                        // 4. Optionally: Update orders in the OLD folder to fill the gap
+                        const oldSiblings = files?.filter(f => f.folderId === activeFile.folderId && f.id !== activeFile.id)
+                            .sort((a, b) => (a.order || 0) - (b.order || 0)) || [];
+                        await Promise.all(oldSiblings.map((file, index) =>
+                            db.files.update(file.id!, { order: index })
+                        ));
+                    }
                     return;
                 }
             }
@@ -194,20 +240,20 @@ export function Sidebar() {
                 <div
                     ref={setNodeRef}
                     className={`
-                        p-2 rounded-lg border-2 border-dashed text-xs text-center transition-all duration-200
+                        p-2.5 rounded-lg border-2 border-dashed text-xs text-center transition-all duration-300
                         ${isOver
-                            ? 'bg-primary-500/10 border-primary-500 text-primary-600 dark:text-primary-400 font-medium'
+                            ? 'bg-primary-500/20 border-primary-500 text-primary-700 dark:text-primary-300 font-bold scale-[1.02] shadow-md animate-pulse'
                             : 'bg-zinc-100/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'}
                     `}
                 >
-                    📁 Root (Drop here to move to root)
+                    📁 Drop here to move to Root
                 </div>
             </div>
         );
     };
 
     return (
-        <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
             <div className="flex flex-col h-full overflow-hidden">
                 {/* Header Actions */}
                 <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 space-y-3">

@@ -25,16 +25,19 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
         setNodeRef,
         transform,
         transition,
-        isDragging
+        isDragging,
+        over
     } = useSortable({
         id: `folder-${folder.id}`,
         data: { type: 'folder', id: folder.id, parentId: folder.parentId }
     });
 
-    const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    const { setNodeRef: setDroppableRef, isOver: isOverDrop } = useDroppable({
         id: `folder-drop-${folder.id}`,
         data: { type: 'folder', id: folder.id }
     });
+
+    const isOverSort = over?.id === `folder-${folder.id}`;
 
     const { editingItemId, editingItemType, setEditingItem } = useStore();
 
@@ -56,12 +59,22 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
     };
 
     return (
-        <div ref={setDroppableRef} className="select-none">
+        <div className="select-none">
             <div
+                ref={(node) => {
+                    setNodeRef(node);
+                    setDroppableRef(node);
+                }}
+                {...attributes}
+                {...listeners}
                 className={`
-                    flex items-center px-2 py-1.5 rounded-lg transition-all duration-200 group relative
-                    ${isOver ? 'bg-primary-500/10' : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
-                    opacity-${isDragging ? '50' : '100'}
+                    flex items-center px-2 py-1.5 rounded-lg transition-all duration-300 group relative
+                    ${isOverDrop
+                        ? 'bg-primary-500/15 ring-2 ring-primary-500 ring-inset shadow-lg'
+                        : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
+                    ${isDragging ? 'opacity-40 scale-[0.98] z-50' : 'opacity-100'}
+                    ${isOverSort && !isOverDrop ? 'border-t-2 border-primary-500' : ''}
+                    cursor-grab active:cursor-grabbing
                 `}
                 style={{
                     transform: CSS.Translate.toString(transform),
@@ -69,17 +82,17 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                 }}
             >
                 <button
-                    onClick={() => !isEditingName && toggleFolder(folder.id!)}
-                    className="mr-1.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isEditingName) toggleFolder(folder.id!);
+                    }}
+                    className="mr-1.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors z-10"
                 >
                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
                 <div
-                    ref={setNodeRef}
-                    {...listeners}
-                    {...attributes}
-                    className="mr-2 text-primary-500 cursor-grab active:cursor-grabbing"
-                    title="Drag to move"
+                    className={`mr-2 transition-colors ${isExpanded || isOverDrop ? 'text-primary-500' : 'text-primary-400/70'}`}
                 >
                     {isExpanded ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
                 </div>
@@ -89,7 +102,9 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                         value={folderName}
                         onChange={(e) => setFolderName(e.target.value)}
                         onBlur={handleNameSave}
+                        onPointerDown={(e) => e.stopPropagation()} // Prevent drag starting on input
                         onKeyDown={(e) => {
+                            e.stopPropagation();
                             if (e.key === 'Enter') handleNameSave();
                             if (e.key === 'Escape') {
                                 setFolderName(folder.name);
@@ -97,11 +112,15 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                             }
                         }}
                         autoFocus
-                        className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm"
+                        className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm z-10"
                     />
                 ) : (
                     <span
-                        onDoubleClick={() => setIsEditingName(true)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditingName(true);
+                        }}
                         onClick={(e) => {
                             e.stopPropagation();
                             const { setSelectedFolderId } = useStore.getState();
@@ -114,8 +133,12 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                     </span>
                 )}
                 <button
-                    onClick={(e) => handleDeleteFolder(e, folder.id!)}
-                    className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFolder(e, folder.id!);
+                    }}
+                    className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 z-10"
                     title="Delete Folder"
                 >
                     <Trash2 size={16} />
@@ -138,11 +161,14 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
         setNodeRef,
         transform,
         transition,
-        isDragging
+        isDragging,
+        over
     } = useSortable({
         id: `file-${file.id}`,
         data: { type: 'file', id: file.id, folderId: file.folderId }
     });
+
+    const isOverSort = over?.id === `file-${file.id}`;
 
     const style = {
         transform: CSS.Translate.toString(transform),
@@ -169,23 +195,25 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
 
     return (
         <div
+            ref={setNodeRef}
+            {...attributes}
+            {...listeners}
             className={`
-                flex items-center px-2 py-1.5 rounded-lg transition-all duration-200 group relative select-none
+                flex items-center px-2 py-1.5 rounded-lg transition-all duration-300 group relative select-none
                 ${activeFileId === file.id
                     ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-100 shadow-sm'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
-                ${isDragging ? 'opacity-50' : 'opacity-100'}
+                ${isDragging ? 'opacity-40 scale-[0.98] shadow-none z-50' : 'opacity-100'}
+                ${isOverSort ? 'border-t-2 border-primary-500' : ''}
+                cursor-grab active:cursor-grabbing
             `}
+            style={style}
         >
             <div
-                ref={setNodeRef}
-                {...listeners}
-                {...attributes}
                 className={`
-                    mr-2 ml-5 cursor-grab active:cursor-grabbing transition-colors
+                    mr-2 ml-5 transition-colors
                     ${activeFileId === file.id ? 'text-primary-500' : 'text-zinc-400 dark:text-zinc-500'}
                 `}
-                title="Drag to move"
             >
                 <FileText size={16} />
             </div>
@@ -195,7 +223,9 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                     value={fileTitle}
                     onChange={(e) => setFileTitle(e.target.value)}
                     onBlur={handleTitleSave}
+                    onPointerDown={(e) => e.stopPropagation()} // Prevent drag starting on input
                     onKeyDown={(e) => {
+                        e.stopPropagation();
                         if (e.key === 'Enter') handleTitleSave();
                         if (e.key === 'Escape') {
                             setFileTitle(file.title);
@@ -203,12 +233,19 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                         }
                     }}
                     autoFocus
-                    className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm"
+                    className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm z-10"
                 />
             ) : (
                 <span
-                    onClick={() => setActiveFileId(file.id!)}
-                    onDoubleClick={() => setIsEditingTitle(true)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveFileId(file.id!);
+                    }}
+                    onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingTitle(true);
+                    }}
                     className="flex-1 truncate text-sm font-medium cursor-pointer"
                     title="Double-click to rename"
                 >
@@ -216,8 +253,12 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                 </span>
             )}
             <button
-                onClick={(e) => handleDeleteFile(e, file.id!)}
-                className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFile(e, file.id!);
+                }}
+                className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 z-10"
                 title="Delete File"
             >
                 <Trash2 size={16} />
