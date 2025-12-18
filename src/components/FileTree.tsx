@@ -18,7 +18,6 @@ interface FileTreeProps {
 function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder, children }: any) {
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [folderName, setFolderName] = React.useState(folder.name);
-    const { editingItemId, editingItemType, setEditingItem } = useStore();
 
     const {
         attributes,
@@ -37,12 +36,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
         data: { type: 'folder', id: folder.id }
     });
 
-    const style = {
-        transform: CSS.Translate.toString(transform),
-        transition,
-        backgroundColor: isOver ? 'rgba(59, 130, 246, 0.2)' : undefined,
-        opacity: isDragging ? 0.5 : 1,
-    };
+    const { editingItemId, editingItemType, setEditingItem } = useStore();
 
     // Auto-edit when this folder is newly created
     React.useEffect(() => {
@@ -62,32 +56,33 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
     };
 
     return (
-        <div ref={setDroppableRef} style={style}>
+        <div ref={setDroppableRef} className="select-none">
             <div
+                className={`
+                    flex items-center px-2 py-1.5 rounded-lg transition-all duration-200 group relative
+                    ${isOver ? 'bg-primary-500/10' : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
+                    opacity-${isDragging ? '50' : '100'}
+                `}
                 style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '4px',
-                    color: 'var(--text-secondary)',
+                    transform: CSS.Translate.toString(transform),
+                    transition,
                 }}
-                className="hover:bg-white/5 group"
             >
-                <span
+                <button
                     onClick={() => !isEditingName && toggleFolder(folder.id!)}
-                    style={{ marginRight: '0.25rem', cursor: 'pointer' }}
+                    className="mr-1.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
                 >
                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </span>
-                <span
+                </button>
+                <div
                     ref={setNodeRef}
                     {...listeners}
                     {...attributes}
-                    style={{ marginRight: '0.5rem', color: 'var(--accent-color)', cursor: 'grab' }}
+                    className="mr-2 text-primary-500 cursor-grab active:cursor-grabbing"
                     title="Drag to move"
                 >
-                    {isExpanded ? <FolderOpen size={16} /> : <FolderIcon size={16} />}
-                </span>
+                    {isExpanded ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
+                </div>
                 {isEditingName ? (
                     <input
                         type="text"
@@ -102,16 +97,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                             }
                         }}
                         autoFocus
-                        style={{
-                            flex: 1,
-                            background: 'var(--bg-tertiary)',
-                            border: '1px solid var(--accent-color)',
-                            borderRadius: '2px',
-                            color: 'var(--text-primary)',
-                            padding: '2px 4px',
-                            outline: 'none',
-                            fontSize: '0.9rem'
-                        }}
+                        className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm"
                     />
                 ) : (
                     <span
@@ -121,7 +107,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                             const { setSelectedFolderId } = useStore.getState();
                             setSelectedFolderId(folder.id!);
                         }}
-                        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                        className="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer"
                         title="Double-click to rename"
                     >
                         {folder.name}
@@ -129,22 +115,10 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                 )}
                 <button
                     onClick={(e) => handleDeleteFolder(e, folder.id!)}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.3')}
-                    style={{
-                        padding: '4px',
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#ef4444',
-                        opacity: 0.3,  // 常に薄く表示
-                        transition: 'opacity 0.2s',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center'
-                    }}
+                    className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
                     title="Delete Folder"
                 >
-                    <Trash2 size={16} />  {/* サイズを大きく */}
+                    <Trash2 size={16} />
                 </button>
             </div>
             {children}
@@ -195,26 +169,26 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
 
     return (
         <div
-            style={{
-                ...style,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '4px',
-                backgroundColor: activeFileId === file.id ? 'var(--bg-tertiary)' : 'transparent',
-                color: activeFileId === file.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-            }}
-            className="hover:bg-white/5 group"
+            className={`
+                flex items-center px-2 py-1.5 rounded-lg transition-all duration-200 group relative select-none
+                ${activeFileId === file.id
+                    ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-100 shadow-sm'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
+                ${isDragging ? 'opacity-50' : 'opacity-100'}
+            `}
         >
-            <span
+            <div
                 ref={setNodeRef}
                 {...listeners}
                 {...attributes}
-                style={{ marginRight: '0.5rem', marginLeft: '1.25rem', cursor: 'grab' }}
+                className={`
+                    mr-2 ml-5 cursor-grab active:cursor-grabbing transition-colors
+                    ${activeFileId === file.id ? 'text-primary-500' : 'text-zinc-400 dark:text-zinc-500'}
+                `}
                 title="Drag to move"
             >
-                <FileText size={14} />
-            </span>
+                <FileText size={16} />
+            </div>
             {isEditingTitle ? (
                 <input
                     type="text"
@@ -229,22 +203,13 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                         }
                     }}
                     autoFocus
-                    style={{
-                        flex: 1,
-                        background: 'var(--bg-tertiary)',
-                        border: '1px solid var(--accent-color)',
-                        borderRadius: '2px',
-                        color: 'var(--text-primary)',
-                        padding: '2px 4px',
-                        outline: 'none',
-                        fontSize: '0.9rem'
-                    }}
+                    className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm"
                 />
             ) : (
                 <span
                     onClick={() => setActiveFileId(file.id!)}
                     onDoubleClick={() => setIsEditingTitle(true)}
-                    style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                    className="flex-1 truncate text-sm font-medium cursor-pointer"
                     title="Double-click to rename"
                 >
                     {file.title}
@@ -252,19 +217,7 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
             )}
             <button
                 onClick={(e) => handleDeleteFile(e, file.id!)}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.3')}
-                style={{
-                    padding: '4px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#ef4444',
-                    opacity: 0.3,  // 常に薄く表示
-                    transition: 'opacity 0.2s',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}
+                className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
                 title="Delete File"
             >
                 <Trash2 size={16} />
@@ -300,7 +253,7 @@ export function FileTree({ folders, files, parentId = null, level = 0 }: FileTre
 
     // Render content
     const content = (
-        <div style={{ paddingLeft: level > 0 ? '1rem' : 0 }}>
+        <div className={level > 0 ? "ml-4 pl-2 border-l border-zinc-200 dark:border-zinc-800" : ""}>
             <SortableContext items={currentFolders.map(f => `folder-${f.id}`)} strategy={verticalListSortingStrategy}>
                 {currentFolders.map((folder) => {
                     const isExpanded = expandedFolderIds.includes(folder.id!);

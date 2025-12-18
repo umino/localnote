@@ -190,22 +190,15 @@ export function Sidebar() {
         });
 
         return (
-            <div style={{
-                padding: '0.5rem 1rem',
-                borderBottom: '1px solid var(--border-color)'
-            }}>
+            <div className="px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
                 <div
                     ref={setNodeRef}
-                    style={{
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        border: '2px dashed var(--border-color)',
-                        textAlign: 'center',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.85rem',
-                        backgroundColor: isOver ? 'rgba(59, 130, 246, 0.2)' : 'var(--bg-secondary)',
-                        transition: 'background-color 0.2s'
-                    }}
+                    className={`
+                        p-2 rounded-lg border-2 border-dashed text-xs text-center transition-all duration-200
+                        ${isOver
+                            ? 'bg-primary-500/10 border-primary-500 text-primary-600 dark:text-primary-400 font-medium'
+                            : 'bg-zinc-100/50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'}
+                    `}
                 >
                     📁 Root (Drop here to move to root)
                 </div>
@@ -215,33 +208,52 @@ export function Sidebar() {
 
     return (
         <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button onClick={createFile} title="New File" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem' }}>
-                        <Plus size={16} /> File
-                    </button>
-                    <button onClick={createFolder} title="New Folder" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem' }}>
-                        <FolderPlus size={16} /> Folder
-                    </button>
+            <div className="flex flex-col h-full overflow-hidden">
+                {/* Header Actions */}
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 space-y-3">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={createFile}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm active:scale-95"
+                        >
+                            <Plus size={16} /> File
+                        </button>
+                        <button
+                            onClick={createFolder}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg text-sm font-medium transition-colors active:scale-95"
+                        >
+                            <FolderPlus size={16} /> Folder
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={exportData}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                        >
+                            <Download size={14} /> Export
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                        >
+                            <Upload size={14} /> Import
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImport}
+                            className="hidden"
+                            accept=".json"
+                        />
+                    </div>
                 </div>
-                <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '0.5rem' }}>
-                    <button onClick={exportData} title="Export Data" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem' }}>
-                        <Download size={14} /> Export
-                    </button>
-                    <button onClick={() => fileInputRef.current?.click()} title="Import Data" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem' }}>
-                        <Upload size={14} /> Import
-                    </button>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImport}
-                        style={{ display: 'none' }}
-                        accept=".json"
-                    />
-                </div>
-                {/* Root Drop Zone - Fixed above scrollable area */}
+
+                {/* Root Drop Zone */}
                 <RootDropZone />
-                <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+
+                {/* Main Content */}
+                <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
                     <FileTree folders={folders || []} files={files || []} />
                 </div>
             </div>
