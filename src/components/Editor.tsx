@@ -20,15 +20,26 @@ export function Editor() {
     const lastSavedTitleRef = useRef('');
     const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const lastFileIdRef = useRef<number | null>(null);
+
     useEffect(() => {
         if (file) {
-            setContent(file.content);
-            lastSavedContentRef.current = file.content;
-            contentRef.current = file.content;
+            const isIdChanged = file.id !== lastFileIdRef.current;
+            lastFileIdRef.current = file.id!;
 
-            setTitle(file.title);
-            lastSavedTitleRef.current = file.title;
-            titleRef.current = file.title;
+            // Sync Content: Update if ID changed OR if DB content changed externally
+            if (isIdChanged || (file.content !== contentRef.current && !saveTimeoutRef.current)) {
+                setContent(file.content);
+                lastSavedContentRef.current = file.content;
+                contentRef.current = file.content;
+            }
+
+            // Sync Title: Update if ID changed OR if DB title changed externally
+            if (isIdChanged || (file.title !== titleRef.current && !titleSaveTimeoutRef.current)) {
+                setTitle(file.title);
+                lastSavedTitleRef.current = file.title;
+                titleRef.current = file.title;
+            }
         } else {
             setContent('');
             lastSavedContentRef.current = '';
@@ -37,8 +48,9 @@ export function Editor() {
             setTitle('');
             lastSavedTitleRef.current = '';
             titleRef.current = '';
+            lastFileIdRef.current = null;
         }
-    }, [file?.id]); // Only reset when file ID changes
+    }, [file?.id, file?.title, file?.content]); // Watch for changes in ID, title, and content
 
     // Save on unmount or activeFileId change
     useEffect(() => {
@@ -72,6 +84,7 @@ export function Editor() {
             if (activeFileId && newContent !== lastSavedContentRef.current) {
                 await saveFile(activeFileId, newContent);
             }
+            saveTimeoutRef.current = null; // Clear ref after save
         }, 60000); // 60 seconds auto-save
     };
 
@@ -88,6 +101,7 @@ export function Editor() {
                 await db.files.update(activeFileId, { title: newTitle, updatedAt: new Date() });
                 lastSavedTitleRef.current = newTitle;
             }
+            titleSaveTimeoutRef.current = null; // Clear ref after save
         }, 500); // 500ms debounce for title
     };
 
