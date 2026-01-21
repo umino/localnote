@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { db } from '../db';
 import type { HistoryRetentionPolicy } from '../types';
