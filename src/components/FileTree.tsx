@@ -19,6 +19,9 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [folderName, setFolderName] = React.useState(folder.name);
 
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [selectOnMount, setSelectOnMount] = React.useState(false);
+
     const {
         attributes,
         listeners,
@@ -45,9 +48,21 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
     React.useEffect(() => {
         if (editingItemId === folder.id && editingItemType === 'folder') {
             setIsEditingName(true);
+            setSelectOnMount(true);
             setEditingItem(null, null);  // Clear editing state
         }
     }, [editingItemId, editingItemType, folder.id, setEditingItem]);
+
+    // Handle focus and selection
+    React.useEffect(() => {
+        if (isEditingName && inputRef.current) {
+            inputRef.current.focus();
+            if (selectOnMount) {
+                inputRef.current.select();
+                setSelectOnMount(false);
+            }
+        }
+    }, [isEditingName, selectOnMount]);
 
     const handleNameSave = async () => {
         if (folderName.trim() && folderName !== folder.name) {
@@ -70,7 +85,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                 className={`
                     flex items-center px-2 py-1.5 rounded-lg transition-all duration-300 group relative
                     ${isOverDrop
-                        ? 'bg-primary-500/15 ring-2 ring-primary-500 ring-inset shadow-lg'
+                        ? 'bg-primary-200 dark:bg-primary-900/50 ring-2 ring-primary-600 dark:ring-primary-400 ring-inset shadow-xl'
                         : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
                     ${isDragging ? 'opacity-40 scale-[0.98] z-50' : 'opacity-100'}
                     ${isOverSort && !isOverDrop ? 'border-t-2 border-primary-500' : ''}
@@ -98,6 +113,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                 </div>
                 {isEditingName ? (
                     <input
+                        ref={inputRef}
                         type="text"
                         value={folderName}
                         onChange={(e) => setFolderName(e.target.value)}
@@ -111,13 +127,13 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                                 setIsEditingName(false);
                             }
                         }}
-                        autoFocus
                         className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm z-10"
                     />
                 ) : (
                     <span
                         onDoubleClick={(e) => {
                             e.stopPropagation();
+                            setSelectOnMount(false);
                             setIsEditingName(true);
                         }}
                         onClick={(e) => {
@@ -152,6 +168,8 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
 function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }: any) {
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [fileTitle, setFileTitle] = React.useState(file.title);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [selectOnMount, setSelectOnMount] = React.useState(false);
     const { editingItemId, editingItemType, setEditingItem } = useStore();
 
     const {
@@ -179,9 +197,21 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
     React.useEffect(() => {
         if (editingItemId === file.id && editingItemType === 'file') {
             setIsEditingTitle(true);
+            setSelectOnMount(true);
             setEditingItem(null, null);  // Clear editing state
         }
     }, [editingItemId, editingItemType, file.id, setEditingItem]);
+
+    // Handle focus and selection
+    React.useEffect(() => {
+        if (isEditingTitle && inputRef.current) {
+            inputRef.current.focus();
+            if (selectOnMount) {
+                inputRef.current.select();
+                setSelectOnMount(false);
+            }
+        }
+    }, [isEditingTitle, selectOnMount]);
 
     const handleTitleSave = async () => {
         if (fileTitle.trim() && fileTitle !== file.title) {
@@ -218,6 +248,7 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
             </div>
             {isEditingTitle ? (
                 <input
+                    ref={inputRef}
                     type="text"
                     value={fileTitle}
                     onChange={(e) => setFileTitle(e.target.value)}
@@ -231,7 +262,6 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                             setIsEditingTitle(false);
                         }
                     }}
-                    autoFocus
                     className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm z-10"
                 />
             ) : (
@@ -242,6 +272,7 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                     }}
                     onDoubleClick={(e) => {
                         e.stopPropagation();
+                        setSelectOnMount(false);
                         setIsEditingTitle(true);
                     }}
                     className="flex-1 truncate text-sm font-medium cursor-pointer"
