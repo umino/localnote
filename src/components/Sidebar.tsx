@@ -1,9 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { FileTree } from './FileTree';
-import { Plus, FolderPlus, Download, Upload } from 'lucide-react';
+import { Plus, FolderPlus, Download, Upload, Settings } from 'lucide-react';
 import { exportData, importData } from '../utils/dataTransfer';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { SettingsModal } from './SettingsModal';
 import {
     DndContext,
     type DragEndEvent,
@@ -252,6 +253,8 @@ export function Sidebar() {
         );
     };
 
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
     return (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
             <div className="flex flex-col h-full overflow-hidden">
@@ -302,6 +305,18 @@ export function Sidebar() {
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
                     <FileTree folders={folders || []} files={files || []} />
                 </div>
+
+                {/* Footer Settings */}
+                <div className="p-2 border-t border-zinc-200 dark:border-zinc-800">
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                    >
+                        <Settings size={16} /> Settings
+                    </button>
+                </div>
+
+                <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             </div>
         </DndContext>
     );

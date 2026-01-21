@@ -107,13 +107,44 @@ export function Editor() {
 
     const saveFile = async (id: number, newContent: string, updateLastSaved = true) => {
         try {
-            await db.transaction('rw', db.files, db.history, async () => {
+            await db.transaction('rw', db.files, db.history, db.settings, async () => {
                 await db.files.update(id, { content: newContent, updatedAt: new Date() });
                 await db.history.add({
                     fileId: id,
                     content: newContent,
                     timestamp: new Date(),
                 });
+
+                // Cleanup based on retention policy
+                const setting = await db.table('settings').get('historyRetention');
+                const policy = setting?.value || { type: 'unlimited' };
+
+                if (policy.type === 'count') {
+                    const limit = Math.max(1, policy.value); // Ensure at least 1
+                    const count = await db.history.where('fileId').equals(id).count();
+                    if (count > limit) {
+                        const deleteCount = count - limit;
+                        const oldestKeys = await db.history
+                            .where('fileId')
+                            .equals(id)
+                            .sortBy('timestamp')
+                            .then(items => items.slice(0, deleteCount).map(i => i.id!));
+
+                        await db.history.bulkDelete(oldestKeys);
+                    }
+                } else if (policy.type === 'days') {
+                    const days = Math.max(1, policy.value);
+                    const cutoffDate = new Date();
+                    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+                    const oldKeys = await db.history
+                        .where('fileId')
+                        .equals(id)
+                        .filter(h => h.timestamp < cutoffDate)
+                        .primaryKeys();
+
+                    await db.history.bulkDelete(oldKeys);
+                }
             });
             if (updateLastSaved) {
                 lastSavedContentRef.current = newContent;

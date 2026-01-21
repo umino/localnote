@@ -23,3 +23,13 @@ export interface FileHistory {
   content: string;
   timestamp: Date;
 }
+
+export type HistoryRetentionPolicy =
+  | { type: 'unlimited' }
+  | { type: 'count'; value: number }
+  | { type: 'days'; value: number };
+
+export interface AppSettings {
+  key: string;
+  value: any;
+}

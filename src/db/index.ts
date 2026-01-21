@@ -1,10 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Folder, TextFile, FileHistory } from '../types';
+import type { Folder, TextFile, FileHistory, AppSettings } from '../types';
 
 const db = new Dexie('LocalNoteDB') as Dexie & {
     folders: EntityTable<Folder, 'id'>;
     files: EntityTable<TextFile, 'id'>;
     history: EntityTable<FileHistory, 'id'>;
+    settings: EntityTable<AppSettings, 'key'>;
 };
 
 // Version 1: Initial schema
@@ -32,6 +33,17 @@ db.version(2).stores({
     // Assign order based on creation date for existing files
     files.forEach((file: any, index: number) => {
         trans.table('files').update(file.id, { order: index });
+    });
+});
+
+// Version 3: Add settings table
+db.version(3).stores({
+    settings: 'key'
+}).upgrade(async (trans) => {
+    // Initialize default history retention policy
+    await trans.table('settings').add({
+        key: 'historyRetention',
+        value: { type: 'unlimited' }
     });
 });
 
