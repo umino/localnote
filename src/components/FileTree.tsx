@@ -116,7 +116,6 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                     />
                 ) : (
                     <span
-                        onPointerDown={(e) => e.stopPropagation()}
                         onDoubleClick={(e) => {
                             e.stopPropagation();
                             setIsEditingName(true);
@@ -237,7 +236,6 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                 />
             ) : (
                 <span
-                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation();
                         setActiveFileId(file.id!);
