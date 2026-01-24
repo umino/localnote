@@ -76,10 +76,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
     return (
         <div className="select-none">
             <div
-                ref={(node) => {
-                    setNodeRef(node);
-                    setDroppableRef(node);
-                }}
+                ref={setNodeRef}
                 {...attributes}
                 {...listeners}
                 className={`
@@ -106,47 +103,54 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                 >
                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
+
                 <div
-                    className={`mr-2 transition-colors ${isExpanded || isOverDrop ? 'text-primary-500' : 'text-primary-400/70'}`}
+                    ref={setDroppableRef}
+                    className="flex-1 flex items-center min-w-0"
                 >
-                    {isExpanded ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
-                </div>
-                {isEditingName ? (
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={folderName}
-                        onChange={(e) => setFolderName(e.target.value)}
-                        onBlur={handleNameSave}
-                        onPointerDown={(e) => e.stopPropagation()} // Prevent drag starting on input
-                        onKeyDown={(e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Enter') handleNameSave();
-                            if (e.key === 'Escape') {
-                                setFolderName(folder.name);
-                                setIsEditingName(false);
-                            }
-                        }}
-                        className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm z-10"
-                    />
-                ) : (
-                    <span
-                        onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            setSelectOnMount(false);
-                            setIsEditingName(true);
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const { setSelectedFolderId } = useStore.getState();
-                            setSelectedFolderId(folder.id!);
-                        }}
-                        className="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer"
-                        title="Double-click to rename"
+                    <div
+                        className={`mr-2 transition-colors ${isExpanded || isOverDrop ? 'text-primary-500' : 'text-primary-400/70'}`}
                     >
-                        {folder.name}
-                    </span>
-                )}
+                        {isExpanded ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
+                    </div>
+                    {isEditingName ? (
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={folderName}
+                            onChange={(e) => setFolderName(e.target.value)}
+                            onBlur={handleNameSave}
+                            onPointerDown={(e) => e.stopPropagation()} // Prevent drag starting on input
+                            onKeyDown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === 'Enter') handleNameSave();
+                                if (e.key === 'Escape') {
+                                    setFolderName(folder.name);
+                                    setIsEditingName(false);
+                                }
+                            }}
+                            className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border-2 border-primary-500 rounded px-1.5 py-0.5 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none shadow-sm z-10"
+                        />
+                    ) : (
+                        <span
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setSelectOnMount(false);
+                                setIsEditingName(true);
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const { setSelectedFolderId } = useStore.getState();
+                                setSelectedFolderId(folder.id!);
+                            }}
+                            className="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer"
+                            title="Double-click to rename"
+                        >
+                            {folder.name}
+                        </span>
+                    )}
+                </div>
+
                 <button
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
