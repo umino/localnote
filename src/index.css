@@ -43,6 +43,99 @@ body {
   @apply bg-white/70 backdrop-blur-md border border-white/20 dark:bg-zinc-900/70 dark:border-zinc-800/50;
 }
 
+/* ─── Tiptap Rich Editor ──────────────────────────────────────────────────── */
+.tiptap-content .ProseMirror {
+  outline: none;
+  min-height: 100%;
+  @apply text-zinc-800 dark:text-zinc-200 text-lg leading-relaxed;
+}
+
+.tiptap-content .ProseMirror > * + * { margin-top: 0.6em; }
+
+.tiptap-content .ProseMirror h1 { @apply text-4xl font-extrabold mt-8 mb-3 text-zinc-900 dark:text-zinc-100; }
+.tiptap-content .ProseMirror h2 { @apply text-2xl font-bold mt-6 mb-2 text-zinc-900 dark:text-zinc-100; }
+.tiptap-content .ProseMirror h3 { @apply text-xl font-semibold mt-4 mb-2 text-zinc-900 dark:text-zinc-100; }
+.tiptap-content .ProseMirror h4,
+.tiptap-content .ProseMirror h5,
+.tiptap-content .ProseMirror h6 { @apply text-lg font-semibold mt-3 mb-1 text-zinc-900 dark:text-zinc-100; }
+
+.tiptap-content .ProseMirror strong { @apply font-bold; }
+.tiptap-content .ProseMirror em { font-style: italic; }
+.tiptap-content .ProseMirror s { text-decoration: line-through; }
+
+.tiptap-content .ProseMirror ul,
+.tiptap-content .ProseMirror ol { padding-left: 1.5rem; }
+.tiptap-content .ProseMirror ul { list-style-type: disc; }
+.tiptap-content .ProseMirror ol { list-style-type: decimal; }
+.tiptap-content .ProseMirror li { @apply leading-relaxed; margin-top: 0.2em; }
+.tiptap-content .ProseMirror li p { margin-top: 0; }
+
+/* Task list */
+.tiptap-content .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.tiptap-content .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.tiptap-content .ProseMirror ul[data-type="taskList"] li > label { flex-shrink: 0; margin-top: 0.3rem; }
+.tiptap-content .ProseMirror ul[data-type="taskList"] li > label input { cursor: pointer; }
+.tiptap-content .ProseMirror ul[data-type="taskList"] li > div { flex: 1; }
+.tiptap-content .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  @apply opacity-50;
+}
+
+/* Inline code */
+.tiptap-content .ProseMirror code {
+  @apply bg-zinc-100 dark:bg-zinc-800 rounded text-sm font-mono;
+  padding: 0.1em 0.35em;
+}
+
+/* Code block */
+.tiptap-content .ProseMirror pre {
+  @apply bg-zinc-100 dark:bg-zinc-800/80 rounded-lg text-sm font-mono leading-relaxed;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+.tiptap-content .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Blockquote */
+.tiptap-content .ProseMirror blockquote {
+  @apply border-l-4 border-zinc-300 dark:border-zinc-600 pl-4 text-zinc-500 dark:text-zinc-400 italic;
+  margin: 0.75rem 0;
+}
+
+/* Images */
+.tiptap-content .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  @apply rounded-lg my-2;
+  display: block;
+}
+
+/* Horizontal rule */
+.tiptap-content .ProseMirror hr {
+  @apply border-none border-t-2 border-zinc-200 dark:border-zinc-700 my-6;
+}
+
+/* Placeholder */
+.tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
+  color: #a1a1aa;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 6px;

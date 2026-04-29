@@ -5,15 +5,16 @@ import { useEffect, useState, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
 import { History, Copy, FileText } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
+import { RichEditor, type RichEditorHandle } from './RichEditor';
 
 export function Editor() {
     const { activeFileId } = useStore();
     const file = useLiveQuery(() => activeFileId ? db.files.get(activeFileId) : undefined, [activeFileId]);
-    const [content, setContent] = useState('');
     const [showHistory, setShowHistory] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedContentRef = useRef('');
     const contentRef = useRef('');
+    const richEditorRef = useRef<RichEditorHandle>(null);
 
     const [title, setTitle] = useState('');
     const titleRef = useRef('');
@@ -27,45 +28,34 @@ export function Editor() {
             const isIdChanged = file.id !== lastFileIdRef.current;
             lastFileIdRef.current = file.id!;
 
-            // Sync Content: Update if ID changed OR if DB content changed externally
-            if (isIdChanged || (file.content !== contentRef.current && !saveTimeoutRef.current)) {
-                setContent(file.content);
+            if (isIdChanged) {
                 lastSavedContentRef.current = file.content;
                 contentRef.current = file.content;
-            }
-
-            // Sync Title: Update if ID changed OR if DB title changed externally
-            if (isIdChanged || (file.title !== titleRef.current && !titleSaveTimeoutRef.current)) {
+                setTitle(file.title);
+                lastSavedTitleRef.current = file.title;
+                titleRef.current = file.title;
+            } else if (file.title !== titleRef.current && !titleSaveTimeoutRef.current) {
                 setTitle(file.title);
                 lastSavedTitleRef.current = file.title;
                 titleRef.current = file.title;
             }
         } else {
-            setContent('');
             lastSavedContentRef.current = '';
             contentRef.current = '';
-
             setTitle('');
             lastSavedTitleRef.current = '';
             titleRef.current = '';
             lastFileIdRef.current = null;
         }
-    }, [file?.id, file?.title, file?.content]); // Watch for changes in ID, title, and content
+    }, [file?.id, file?.title, file?.content]);
 
-    // Save on unmount or activeFileId change
     useEffect(() => {
         return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
-            }
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
             if (activeFileId && contentRef.current !== lastSavedContentRef.current) {
                 saveFile(activeFileId, contentRef.current, false);
             }
-
-            // Save pending title changes
-            if (titleSaveTimeoutRef.current) {
-                clearTimeout(titleSaveTimeoutRef.current);
-            }
+            if (titleSaveTimeoutRef.current) clearTimeout(titleSaveTimeoutRef.current);
             if (activeFileId && titleRef.current !== lastSavedTitleRef.current) {
                 db.files.update(activeFileId, { title: titleRef.current, updatedAt: new Date() });
             }
@@ -73,82 +63,56 @@ export function Editor() {
     }, [activeFileId]);
 
     const handleContentChange = (newContent: string) => {
-        setContent(newContent);
         contentRef.current = newContent;
-
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-        }
-
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(async () => {
-            if (activeFileId && newContent !== lastSavedContentRef.current) {
-                await saveFile(activeFileId, newContent);
+            if (activeFileId && contentRef.current !== lastSavedContentRef.current) {
+                await saveFile(activeFileId, contentRef.current);
             }
-            saveTimeoutRef.current = null; // Clear ref after save
-        }, 60000); // 60 seconds auto-save
+            saveTimeoutRef.current = null;
+        }, 2000);
     };
 
     const handleTitleChange = (newTitle: string) => {
         setTitle(newTitle);
         titleRef.current = newTitle;
-
-        if (titleSaveTimeoutRef.current) {
-            clearTimeout(titleSaveTimeoutRef.current);
-        }
-
+        if (titleSaveTimeoutRef.current) clearTimeout(titleSaveTimeoutRef.current);
         titleSaveTimeoutRef.current = setTimeout(async () => {
             if (activeFileId && newTitle !== lastSavedTitleRef.current) {
                 await db.files.update(activeFileId, { title: newTitle, updatedAt: new Date() });
                 lastSavedTitleRef.current = newTitle;
             }
-            titleSaveTimeoutRef.current = null; // Clear ref after save
-        }, 500); // 500ms debounce for title
+            titleSaveTimeoutRef.current = null;
+        }, 500);
     };
 
     const saveFile = async (id: number, newContent: string, updateLastSaved = true) => {
         try {
             await db.transaction('rw', db.files, db.history, db.settings, async () => {
                 await db.files.update(id, { content: newContent, updatedAt: new Date() });
-                await db.history.add({
-                    fileId: id,
-                    content: newContent,
-                    timestamp: new Date(),
-                });
+                await db.history.add({ fileId: id, content: newContent, timestamp: new Date() });
 
-                // Cleanup based on retention policy
                 const setting = await db.table('settings').get('historyRetention');
                 const policy = setting?.value || { type: 'unlimited' };
 
                 if (policy.type === 'count') {
-                    const limit = Math.max(1, policy.value); // Ensure at least 1
+                    const limit = Math.max(1, policy.value);
                     const count = await db.history.where('fileId').equals(id).count();
                     if (count > limit) {
-                        const deleteCount = count - limit;
                         const oldestKeys = await db.history
-                            .where('fileId')
-                            .equals(id)
-                            .sortBy('timestamp')
-                            .then(items => items.slice(0, deleteCount).map(i => i.id!));
-
+                            .where('fileId').equals(id).sortBy('timestamp')
+                            .then(items => items.slice(0, count - limit).map(i => i.id!));
                         await db.history.bulkDelete(oldestKeys);
                     }
                 } else if (policy.type === 'days') {
-                    const days = Math.max(1, policy.value);
-                    const cutoffDate = new Date();
-                    cutoffDate.setDate(cutoffDate.getDate() - days);
-
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - Math.max(1, policy.value));
                     const oldKeys = await db.history
-                        .where('fileId')
-                        .equals(id)
-                        .filter(h => h.timestamp < cutoffDate)
-                        .primaryKeys();
-
+                        .where('fileId').equals(id).filter(h => h.timestamp < cutoff).primaryKeys();
                     await db.history.bulkDelete(oldKeys);
                 }
             });
-            if (updateLastSaved) {
-                lastSavedContentRef.current = newContent;
-            }
+            if (updateLastSaved) lastSavedContentRef.current = newContent;
             toast.success('Saved');
         } catch (error) {
             console.error('Failed to save', error);
@@ -174,7 +138,6 @@ export function Editor() {
         <div className="flex-1 flex flex-col h-full bg-white dark:bg-zinc-900 relative">
             <Toaster position="bottom-right" theme="dark" />
 
-            {/* Toolbar / Header */}
             <header className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center gap-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-20">
                 <input
                     value={title}
@@ -187,14 +150,13 @@ export function Editor() {
                     <button
                         onClick={async () => {
                             try {
-                                await navigator.clipboard.writeText(content);
+                                await navigator.clipboard.writeText(richEditorRef.current?.getText() ?? '');
                                 toast.success('Copied to clipboard');
-                            } catch (error) {
-                                console.error('Failed to copy', error);
+                            } catch {
                                 toast.error('Failed to copy');
                             }
                         }}
-                        title="Copy Content"
+                        title="Copy as plain text"
                         className="p-2 text-zinc-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-all active:scale-95"
                     >
                         <Copy size={18} />
@@ -215,27 +177,24 @@ export function Editor() {
                 </div>
             </header>
 
-            {/* Editor Area */}
             <div className="flex-1 flex overflow-hidden relative">
-                <textarea
-                    value={content}
-                    onChange={(e) => handleContentChange(e.target.value)}
-                    placeholder="Type something..."
-                    className="
-                        flex-1 bg-transparent border-none text-zinc-800 dark:text-zinc-200 
-                        p-8 md:p-12 resize-none outline-none 
-                        font-sans text-lg leading-relaxed
-                        placeholder:opacity-20
-                        scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800
-                    "
+                <RichEditor
+                    ref={richEditorRef}
+                    key={file.id}
+                    initialContent={file.content}
+                    onChange={handleContentChange}
                 />
 
-                {/* History Panel Sidebar */}
                 {showHistory && (
                     <aside className="w-[320px] border-l border-zinc-200 dark:border-zinc-800 glass z-10 shadow-2xl animate-in slide-in-from-right duration-300">
-                        <HistoryPanel fileId={activeFileId} onRestore={(content) => {
-                            setContent(content);
-                            saveFile(activeFileId, content);
+                        <HistoryPanel fileId={activeFileId} onRestore={(restoredContent) => {
+                            if (saveTimeoutRef.current) {
+                                clearTimeout(saveTimeoutRef.current);
+                                saveTimeoutRef.current = null;
+                            }
+                            richEditorRef.current?.setContent(restoredContent);
+                            contentRef.current = restoredContent;
+                            saveFile(activeFileId, restoredContent);
                         }} />
                     </aside>
                 )}

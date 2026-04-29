@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-// import { format } from 'date-fns';
 import { RotateCcw } from 'lucide-react';
+import { extractTextPreview } from '../utils/content';
 
 interface HistoryPanelProps {
     fileId: number;
@@ -47,7 +47,7 @@ export function HistoryPanel({ fileId, onRestore }: HistoryPanelProps) {
                             </div>
 
                             <div className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-3 leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
-                                {entry.content || <span className="italic opacity-30 px-1">Empty content</span>}
+                                {extractTextPreview(entry.content) || <span className="italic opacity-30 px-1">Empty content</span>}
                             </div>
 
                             <button
