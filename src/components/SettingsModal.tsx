@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, HardDrive, RefreshCw, Download } from 'lucide-react';
 import { db } from '../db';
 import type { HistoryRetentionPolicy } from '../types';
 import { toast } from 'sonner';
+import {
+    isStorageManagerSupported,
+    isPersisted,
+    requestPersist,
+    getStorageEstimate,
+    formatBytes,
+} from '../utils/storage';
+import { exportData } from '../utils/dataTransfer';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -12,10 +20,14 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [retentionPolicy, setRetentionPolicy] = useState<HistoryRetentionPolicy>({ type: 'unlimited' });
     const [isLoading, setIsLoading] = useState(true);
+    const [persisted, setPersisted] = useState<boolean | null>(null);
+    const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number; usageRatio: number } | null>(null);
+    const [isRequestingPersist, setIsRequestingPersist] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             loadSettings();
+            loadStorageStatus();
         }
     }, [isOpen]);
 
@@ -30,6 +42,27 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             toast.error('Failed to load settings');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const loadStorageStatus = async () => {
+        const [persistedResult, estimateResult] = await Promise.all([
+            isPersisted(),
+            getStorageEstimate(),
+        ]);
+        setPersisted(persistedResult);
+        setStorageEstimate(estimateResult);
+    };
+
+    const handleRequestPersist = async () => {
+        setIsRequestingPersist(true);
+        const ok = await requestPersist();
+        setIsRequestingPersist(false);
+        if (ok) {
+            setPersisted(true);
+            toast.success('ストレージの永続化が許可されました');
+        } else {
+            toast.warning('ブラウザによってブロックされました。ブラウザ設定でサイト権限を変更するか、定期的にバックアップをエクスポートしてください');
         }
     };
 
@@ -79,6 +112,57 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            <section>
+                                <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
+                                    <HardDrive size={15} /> Storage
+                                </h3>
+                                <div className="space-y-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 text-sm">
+                                    {!isStorageManagerSupported() ? (
+                                        <p className="text-zinc-500 text-xs">このブラウザは Storage Manager API をサポートしていません。</p>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-zinc-600 dark:text-zinc-400">Persistent storage</span>
+                                                <span className={persisted === null ? 'text-zinc-400' : persisted ? 'text-green-600 dark:text-green-400 font-medium' : 'text-yellow-600 dark:text-yellow-400 font-medium'}>
+                                                    {persisted === null ? '確認中…' : persisted ? 'Enabled' : 'Not enabled'}
+                                                </span>
+                                            </div>
+                                            {storageEstimate && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-zinc-600 dark:text-zinc-400">Used (概算)</span>
+                                                    <span className="text-zinc-700 dark:text-zinc-300">
+                                                        {formatBytes(storageEstimate.usage)} / {formatBytes(storageEstimate.quota)}
+                                                        <span className="ml-1 text-zinc-400">({(storageEstimate.usageRatio * 100).toFixed(2)}%)</span>
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {persisted === false && (
+                                                <div className="space-y-2 pt-1">
+                                                    <button
+                                                        onClick={handleRequestPersist}
+                                                        disabled={isRequestingPersist}
+                                                        className="flex items-center gap-2 w-full justify-center px-3 py-2 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors"
+                                                    >
+                                                        <RefreshCw size={13} className={isRequestingPersist ? 'animate-spin' : ''} />
+                                                        永続化を再要求
+                                                    </button>
+                                                    <button
+                                                        onClick={() => exportData()}
+                                                        className="flex items-center gap-2 w-full justify-center px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-200 dark:border-zinc-700"
+                                                    >
+                                                        <Download size={13} />
+                                                        バックアップをエクスポート
+                                                    </button>
+                                                </div>
+                                            )}
+                                            <p className="text-xs text-zinc-400 pt-1">
+                                                Safari では 7 日間未訪問でデータが削除される場合があります。定期的なエクスポートを推奨します。
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            </section>
+
                             <section>
                                 <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">History Retention</h3>
                                 <div className="space-y-3">
