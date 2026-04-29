@@ -36,6 +36,26 @@ Follow these steps to run the application locally.
    Open http://localhost:5173 to view the application.
    http://localhost:5173 を開いて確認してください。
 
+## Single-File Build / 単一 HTML ビルド
+
+サーバーを起動せずに、HTML ファイルをダブルクリックするだけで利用できるビルドモードです。
+
+```bash
+npm install
+npm run build:single
+```
+
+`dist/index.html` が生成されます。このファイル単体をコピー・配布して、ブラウザでダブルクリックすると `file://` プロトコルで動作します。
+
+### 注意事項 (file:// の制約)
+
+| 項目 | 内容 |
+|------|------|
+| **データの保存先** | IndexedDB (ブラウザが管理)。`file://` では Persistent Storage API が使えないため eviction リスクが通常より高い。 |
+| **ファイルを移動しない** | `index.html` のフルパスが変わるとブラウザが別オリジンと判定し、データが見えなくなる場合がある。Chrome/Edge は `file://` 全体を同一オリジン扱いだが Firefox はパスごとに分離する。 |
+| **定期バックアップ必須** | Settings > Export でデータを JSON ファイルに書き出し、定期的に保存すること。 |
+| **推奨ブラウザ** | Chrome / Edge / Firefox。Safari は `file://` での IndexedDB に制限があるため非推奨。 |
+
 ## Docker
 
 ```bash

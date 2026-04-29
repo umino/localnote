@@ -10,6 +10,6 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-if (isStorageManagerSupported()) {
+if (location.protocol !== 'file:' && isStorageManagerSupported()) {
   void requestPersist();
 }

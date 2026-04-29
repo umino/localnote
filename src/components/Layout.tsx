@@ -9,6 +9,7 @@ export function Layout() {
     const { isSidebarOpen } = useStore();
 
     useEffect(() => {
+        if (location.protocol === 'file:') return;
         if (!isStorageManagerSupported()) return;
         if (sessionStorage.getItem('persistNoticeShown')) return;
         isPersisted().then((ok) => {
