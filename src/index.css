@@ -114,6 +114,14 @@ body {
   margin: 0.75rem 0;
 }
 
+/* Links */
+.tiptap-content .ProseMirror a {
+  @apply text-primary-600 dark:text-primary-400 underline cursor-pointer;
+}
+.tiptap-content .ProseMirror a:hover {
+  @apply text-primary-700 dark:text-primary-300;
+}
+
 /* Images */
 .tiptap-content .ProseMirror img {
   max-width: 100%;

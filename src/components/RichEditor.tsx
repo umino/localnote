@@ -8,6 +8,7 @@ import { TaskItem } from '@tiptap/extension-task-item';
 import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import Link from '@tiptap/extension-link';
 import { parseContent } from '../utils/content';
 
 export interface RichEditorHandle {
@@ -18,6 +19,10 @@ export interface RichEditorHandle {
     setColor: (color: string) => void;
     unsetColor: () => void;
     getCurrentColor: () => string | null;
+    setLink: (url: string) => void;
+    unsetLink: () => void;
+    isLinkActive: () => boolean;
+    getCurrentLink: () => string | null;
 }
 
 interface RichEditorProps {
@@ -33,6 +38,12 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 Underline,
                 TextStyle,
                 Color,
+                Link.configure({
+                    openOnClick: false,
+                    linkOnPaste: true,
+                    autolink: true,
+                    HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
+                }),
                 Image.configure({ inline: false }),
                 Placeholder.configure({ placeholder: 'Type something...' }),
                 TaskList,
@@ -43,6 +54,18 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 onChange(JSON.stringify(editor.getJSON()));
             },
             editorProps: {
+                handleClick(_view, _pos, event) {
+                    if (event.ctrlKey || event.metaKey) {
+                        const target = event.target as HTMLElement;
+                        const anchor = target.closest('a');
+                        const href = anchor?.getAttribute('href');
+                        if (href) {
+                            window.open(href, '_blank', 'noopener,noreferrer');
+                            return true;
+                        }
+                    }
+                    return false;
+                },
                 handlePaste(view, event) {
                     const items = Array.from(event.clipboardData?.items ?? []);
                     const imageItem = items.find(item => item.type.startsWith('image/'));
@@ -75,6 +98,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             setColor: (color: string) => { editor?.chain().focus().setColor(color).run(); },
             unsetColor: () => { editor?.chain().focus().unsetColor().run(); },
             getCurrentColor: () => editor?.getAttributes('textStyle').color ?? null,
+            setLink: (url: string) => { editor?.chain().focus().setLink({ href: url }).run(); },
+            unsetLink: () => { editor?.chain().focus().unsetLink().run(); },
+            isLinkActive: () => editor?.isActive('link') ?? false,
+            getCurrentLink: () => editor?.getAttributes('link').href ?? null,
         }), [editor]);
 
         if (!editor) return null;
