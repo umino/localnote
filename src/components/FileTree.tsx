@@ -1,7 +1,8 @@
 import type { Folder, TextFile } from '../types';
 import { useStore } from '../store/useStore';
-import { ChevronRight, ChevronDown, FileText, Folder as FolderIcon, FolderOpen, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, Folder as FolderIcon, FolderOpen, Trash2, Download } from 'lucide-react';
 import { db } from '../db';
+import { exportFile, exportFolder } from '../utils/dataTransfer';
 import { useDroppable } from '@dnd-kit/core';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,7 +16,7 @@ interface FileTreeProps {
 }
 
 // Draggable/Sortable Item Components
-function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder, children }: any) {
+function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder, handleExportFolder, children }: any) {
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [folderName, setFolderName] = React.useState(folder.name);
 
@@ -155,6 +156,17 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                         e.stopPropagation();
+                        handleExportFolder(folder.id!);
+                    }}
+                    className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-primary-500 dark:hover:text-primary-400 transition-all duration-200 z-10"
+                    title="フォルダをエクスポート"
+                >
+                    <Download size={16} />
+                </button>
+                <button
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
                         handleDeleteFolder(e, folder.id!);
                     }}
                     className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 z-10"
@@ -169,7 +181,7 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
 }
 
 // Draggable/Sortable File Item
-function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }: any) {
+function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile, handleExportFile }: any) {
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [fileTitle, setFileTitle] = React.useState(file.title);
     const inputRef = React.useRef<HTMLInputElement>(null);
@@ -289,6 +301,17 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile }
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                     e.stopPropagation();
+                    handleExportFile(file.id!);
+                }}
+                className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-primary-500 dark:hover:text-primary-400 transition-all duration-200 z-10"
+                title="ページをエクスポート"
+            >
+                <Download size={16} />
+            </button>
+            <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
                     handleDeleteFile(e, file.id!);
                 }}
                 className="p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 z-10"
@@ -313,17 +336,17 @@ export function FileTree({ folders, files, parentId = null, level = 0 }: FileTre
 
     const handleDeleteFile = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
-        // confirm()を使用すると無限ループが発生するため削除
-        // ユーザーは削除ボタンをクリックする際に慎重になる必要がある
         await db.files.delete(id);
         if (activeFileId === id) setActiveFileId(null);
     };
 
     const handleDeleteFolder = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
-        // confirm()を使用すると無限ループが発生するため削除
         await db.folders.delete(id);
     };
+
+    const handleExportFile = (id: number) => { exportFile(id); };
+    const handleExportFolder = (id: number) => { exportFolder(id); };
 
     // Render content
     const content = (
@@ -338,6 +361,7 @@ export function FileTree({ folders, files, parentId = null, level = 0 }: FileTre
                             isExpanded={isExpanded}
                             toggleFolder={toggleFolder}
                             handleDeleteFolder={handleDeleteFolder}
+                            handleExportFolder={handleExportFolder}
                         >
                             {isExpanded && (
                                 <FileTree
@@ -359,6 +383,7 @@ export function FileTree({ folders, files, parentId = null, level = 0 }: FileTre
                         activeFileId={activeFileId}
                         setActiveFileId={setActiveFileId}
                         handleDeleteFile={handleDeleteFile}
+                        handleExportFile={handleExportFile}
                     />
                 ))}
             </SortableContext>
