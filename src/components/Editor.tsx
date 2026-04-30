@@ -3,14 +3,24 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useEffect, useState, useRef } from 'react';
 import { Toaster, toast } from 'sonner';
-import { History, Copy, FileText } from 'lucide-react';
+import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
 import { RichEditor, type RichEditorHandle } from './RichEditor';
+
+const COLOR_PALETTE = [
+    { label: '赤', value: '#ef4444' },
+    { label: 'オレンジ', value: '#f97316' },
+    { label: '緑', value: '#10b981' },
+    { label: '青', value: '#3b82f6' },
+    { label: '紫', value: '#8b5cf6' },
+    { label: 'グレー', value: '#71717a' },
+];
 
 export function Editor() {
     const { activeFileId } = useStore();
     const file = useLiveQuery(() => activeFileId ? db.files.get(activeFileId) : undefined, [activeFileId]);
     const [showHistory, setShowHistory] = useState(false);
+    const [showColorPicker, setShowColorPicker] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedContentRef = useRef('');
     const contentRef = useRef('');
@@ -147,6 +157,58 @@ export function Editor() {
                 />
 
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-100/50 dark:bg-zinc-800/50 rounded-lg">
+                    {/* Underline */}
+                    <button
+                        onClick={() => richEditorRef.current?.toggleUnderline()}
+                        title="下線 (Ctrl+U)"
+                        className={`
+                            p-2 rounded-md transition-all active:scale-95
+                            ${richEditorRef.current?.isUnderlineActive()
+                                ? 'text-primary-600 dark:text-primary-400 bg-white dark:bg-zinc-700 shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-zinc-700'}
+                        `}
+                    >
+                        <UnderlineIcon size={18} />
+                    </button>
+
+                    {/* Color picker */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowColorPicker(p => !p)}
+                            title="文字色"
+                            className={`
+                                p-2 rounded-md transition-all active:scale-95
+                                ${showColorPicker
+                                    ? 'text-primary-600 dark:text-primary-400 bg-white dark:bg-zinc-700 shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-zinc-700'}
+                            `}
+                        >
+                            <Palette size={18} style={{ color: richEditorRef.current?.getCurrentColor() ?? undefined }} />
+                        </button>
+                        {showColorPicker && (
+                            <div className="absolute right-0 top-full mt-1 z-30 p-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl flex flex-col gap-1.5 min-w-[120px]">
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    {COLOR_PALETTE.map(({ label, value }) => (
+                                        <button
+                                            key={value}
+                                            title={label}
+                                            onClick={() => { richEditorRef.current?.setColor(value); setShowColorPicker(false); }}
+                                            className="w-7 h-7 rounded-full border-2 border-transparent hover:border-zinc-400 transition-all active:scale-90"
+                                            style={{ backgroundColor: value }}
+                                        />
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => { richEditorRef.current?.unsetColor(); setShowColorPicker(false); }}
+                                    className="flex items-center gap-1 px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded transition-colors"
+                                >
+                                    <X size={11} /> デフォルト
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="w-px h-4 bg-zinc-200 dark:border-zinc-700 mx-0.5" />
                     <button
                         onClick={async () => {
                             try {

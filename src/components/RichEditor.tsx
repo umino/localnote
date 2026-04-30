@@ -5,11 +5,19 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
+import Underline from '@tiptap/extension-underline';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
 import { parseContent } from '../utils/content';
 
 export interface RichEditorHandle {
     setContent: (content: string) => void;
     getText: () => string;
+    toggleUnderline: () => void;
+    isUnderlineActive: () => boolean;
+    setColor: (color: string) => void;
+    unsetColor: () => void;
+    getCurrentColor: () => string | null;
 }
 
 interface RichEditorProps {
@@ -22,6 +30,9 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
         const editor = useEditor({
             extensions: [
                 StarterKit,
+                Underline,
+                TextStyle,
+                Color,
                 Image.configure({ inline: false }),
                 Placeholder.configure({ placeholder: 'Type something...' }),
                 TaskList,
@@ -59,6 +70,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 editor?.commands.setContent(parseContent(content), { emitUpdate: false });
             },
             getText: () => editor?.getText() ?? '',
+            toggleUnderline: () => { editor?.chain().focus().toggleUnderline().run(); },
+            isUnderlineActive: () => editor?.isActive('underline') ?? false,
+            setColor: (color: string) => { editor?.chain().focus().setColor(color).run(); },
+            unsetColor: () => { editor?.chain().focus().unsetColor().run(); },
+            getCurrentColor: () => editor?.getAttributes('textStyle').color ?? null,
         }), [editor]);
 
         if (!editor) return null;
