@@ -25,6 +25,7 @@ export function Editor() {
     const [linkUrl, setLinkUrl] = useState('');
     const linkInputRef = useRef<HTMLInputElement>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const autoSaveIntervalRef = useRef<number>(30000);
     const lastSavedContentRef = useRef('');
     const contentRef = useRef('');
     const richEditorRef = useRef<RichEditorHandle>(null);
@@ -35,6 +36,12 @@ export function Editor() {
     const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const lastFileIdRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        db.table('settings').get('autoSaveInterval').then((s) => {
+            if (s?.value != null) autoSaveIntervalRef.current = s.value * 1000;
+        });
+    }, []);
 
     useEffect(() => {
         if (file) {
@@ -83,7 +90,7 @@ export function Editor() {
                 await saveFile(activeFileId, contentRef.current);
             }
             saveTimeoutRef.current = null;
-        }, 2000);
+        }, autoSaveIntervalRef.current);
     };
 
     const handleTitleChange = (newTitle: string) => {

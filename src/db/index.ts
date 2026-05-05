@@ -47,4 +47,14 @@ db.version(3).stores({
     });
 });
 
+// Version 4: Add autoSaveInterval setting (default: 30 seconds)
+db.version(4).stores({
+    settings: 'key'
+}).upgrade(async (trans) => {
+    await trans.table('settings').add({
+        key: 'autoSaveInterval',
+        value: 30
+    });
+});
+
 export { db };

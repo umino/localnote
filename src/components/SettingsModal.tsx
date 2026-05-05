@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+
+declare const __APP_VERSION__: string;
 import { X, Save, HardDrive, RefreshCw, Download } from 'lucide-react';
 import { db } from '../db';
 import type { HistoryRetentionPolicy } from '../types';
@@ -19,6 +21,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [retentionPolicy, setRetentionPolicy] = useState<HistoryRetentionPolicy>({ type: 'unlimited' });
+    const [autoSaveInterval, setAutoSaveInterval] = useState<number>(30);
     const [isLoading, setIsLoading] = useState(true);
     const [persisted, setPersisted] = useState<boolean | null>(null);
     const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number; usageRatio: number } | null>(null);
@@ -33,10 +36,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
     const loadSettings = async () => {
         try {
-            const setting = await db.table('settings').get('historyRetention');
-            if (setting) {
-                setRetentionPolicy(setting.value);
-            }
+            const [retentionSetting, intervalSetting] = await Promise.all([
+                db.table('settings').get('historyRetention'),
+                db.table('settings').get('autoSaveInterval'),
+            ]);
+            if (retentionSetting) setRetentionPolicy(retentionSetting.value);
+            if (intervalSetting?.value != null) setAutoSaveInterval(intervalSetting.value);
         } catch (error) {
             console.error('Failed to load settings', error);
             toast.error('Failed to load settings');
@@ -77,11 +82,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 toast.error('History days must be at least 1');
                 return;
             }
+            if (autoSaveInterval < 5) {
+                toast.error('Auto save interval must be at least 5 seconds');
+                return;
+            }
 
-            await db.table('settings').put({
-                key: 'historyRetention',
-                value: retentionPolicy
-            });
+            await Promise.all([
+                db.table('settings').put({ key: 'historyRetention', value: retentionPolicy }),
+                db.table('settings').put({ key: 'autoSaveInterval', value: autoSaveInterval }),
+            ]);
             toast.success('Settings saved');
             onClose();
         } catch (error) {
@@ -96,7 +105,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-md border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[90vh]">
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800">
-                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Settings</h2>
+                    <div>
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Settings</h2>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-600 select-none">v{__APP_VERSION__}</span>
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
@@ -160,6 +172,27 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                             </p>
                                         </>
                                     )}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">Auto Save</h3>
+                                <div className="flex items-center gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <div className="flex-1">
+                                        <div className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Interval</div>
+                                        <div className="text-xs text-zinc-500">編集が止まってから保存するまでの秒数</div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <input
+                                            type="number"
+                                            min="5"
+                                            max="300"
+                                            value={autoSaveInterval}
+                                            onChange={(e) => setAutoSaveInterval(Math.max(5, parseInt(e.target.value) || 5))}
+                                            className="w-20 px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                        <span className="text-sm text-zinc-500">秒</span>
+                                    </div>
                                 </div>
                             </section>
 
@@ -234,6 +267,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
 
                 <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
+                    <div className="flex gap-2">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
@@ -246,6 +280,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     >
                         <Save size={16} /> Save Changes
                     </button>
+                </div>
                 </div>
             </div>
         </div>

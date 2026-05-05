@@ -87,24 +87,60 @@ export const exportFolder = async (folderId: number) => {
 };
 
 export const importData = async (file: File) => {
+    // Step 1: JSON parse (独立してキャッチ)
+    let data: any;
     try {
-        const text = await file.text();
-        const data = JSON.parse(text);
+        data = JSON.parse(await file.text());
+    } catch (e) {
+        const detail = e instanceof SyntaxError ? e.message : String(e);
+        toast.error(`JSONの解析に失敗しました: ${detail}`, { duration: 8000 });
+        console.error('Import parse error', e);
+        return;
+    }
+
+    // Step 2: 構造検証 + DB 書き込み
+    try {
+        if (data == null || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error('ファイルのルートがオブジェクトではありません');
+        }
+
+        if (data.version != null && data.version !== 1) {
+            toast.warning(`未知のバージョン (version: ${data.version}) です。インポートを試みますが互換性の問題が起きる可能性があります`, { duration: 6000 });
+        }
 
         const kind: string = data.kind ?? 'full';
 
         if (kind === 'page') {
-            if (!data.file) throw new Error('Invalid backup file');
+            if (data.file == null || typeof data.file !== 'object' || Array.isArray(data.file)) {
+                throw new Error('ページデータ (file フィールド) が見つかりません');
+            }
+            if (typeof data.file.title !== 'string') {
+                throw new Error('ページのタイトル (file.title) が文字列ではありません');
+            }
+            if (typeof data.file.content !== 'string') {
+                throw new Error('ページの内容 (file.content) が文字列ではありません');
+            }
+
             const { id: _id, ...fileData } = data.file;
             await db.files.add({ ...fileData, folderId: null });
-            toast.success('Import successful');
+            toast.success('インポートしました');
             window.location.reload();
 
         } else if (kind === 'folder') {
-            if (!data.folders || !data.files) throw new Error('Invalid backup file');
+            if (!Array.isArray(data.folders)) {
+                throw new Error('フォルダリスト (folders フィールド) が配列ではありません');
+            }
+            if (data.folders.length === 0) {
+                throw new Error('フォルダリスト (folders) が空です');
+            }
+            if (!Array.isArray(data.files)) {
+                throw new Error('ファイルリスト (files フィールド) が配列ではありません');
+            }
+            if (typeof data.rootFolderId !== 'number') {
+                throw new Error('ルートフォルダID (rootFolderId フィールド) が数値ではありません');
+            }
 
             await db.transaction('rw', db.folders, db.files, async () => {
-                // BFS 順 (parent が先に来るよう) でソート
                 const folderList: any[] = [...data.folders];
                 const rootFolderId: number = data.rootFolderId;
                 const sorted: any[] = [];
@@ -119,10 +155,8 @@ export const importData = async (file: File) => {
                         folderList.filter(f => f.parentId === id).forEach(f => visitQueue.push(f.id));
                     }
                 }
-                // 残り (BFS で到達できなかったもの) を末尾に追加
                 remaining.forEach(f => sorted.push(f));
 
-                // 旧 id → 新 id のマップを構築しながら挿入
                 const idMap = new Map<number, number>();
                 for (const folder of sorted) {
                     const { id: oldId, parentId, ...rest } = folder;
@@ -133,7 +167,6 @@ export const importData = async (file: File) => {
                     if (oldId != null) idMap.set(oldId, newId as number);
                 }
 
-                // ファイルの folderId を新 id に付け替えて挿入
                 const fileInserts = (data.files as any[]).map(({ id: _id, folderId, ...rest }: any) => ({
                     ...rest,
                     folderId: folderId != null ? (idMap.get(folderId) ?? null) : null,
@@ -141,12 +174,16 @@ export const importData = async (file: File) => {
                 await db.files.bulkAdd(fileInserts);
             });
 
-            toast.success('Import successful');
+            toast.success('インポートしました');
             window.location.reload();
 
-        } else {
-            // full (既存互換)
-            if (!data.folders || !data.files) throw new Error('Invalid backup file');
+        } else if (kind === 'full') {
+            if (!Array.isArray(data.folders)) {
+                throw new Error('フォルダリスト (folders フィールド) が配列ではありません');
+            }
+            if (!Array.isArray(data.files)) {
+                throw new Error('ファイルリスト (files フィールド) が配列ではありません');
+            }
             if (!confirm('既存データをすべて置き換えます。続けますか？')) return;
 
             await db.transaction('rw', db.folders, db.files, db.history, async () => {
@@ -160,9 +197,13 @@ export const importData = async (file: File) => {
 
             toast.success('Import successful');
             window.location.reload();
+
+        } else {
+            throw new Error(`未知の kind "${kind}" です。localnote のエクスポートファイルか確認してください`);
         }
     } catch (error) {
         console.error('Import failed', error);
-        toast.error('Import failed');
+        const detail = error instanceof Error ? error.message : String(error);
+        toast.error(`インポートに失敗しました: ${detail}`, { duration: 8000 });
     }
 };
