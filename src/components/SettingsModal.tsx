@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 declare const __APP_VERSION__: string;
-import { X, Save, HardDrive, RefreshCw, Download } from 'lucide-react';
+import { X, Save, HardDrive, RefreshCw, Download, MonitorSmartphone } from 'lucide-react';
 import { db } from '../db';
 import type { HistoryRetentionPolicy } from '../types';
 import { toast } from 'sonner';
@@ -11,6 +11,9 @@ import {
     requestPersist,
     getStorageEstimate,
     formatBytes,
+    isInstalledPWA,
+    canInstallPWA,
+    triggerInstall,
 } from '../utils/storage';
 import { exportData } from '../utils/dataTransfer';
 
@@ -26,11 +29,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [persisted, setPersisted] = useState<boolean | null>(null);
     const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number; usageRatio: number } | null>(null);
     const [isRequestingPersist, setIsRequestingPersist] = useState(false);
+    const [installable, setInstallable] = useState(false);
+    const [installed, setInstalled] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             loadSettings();
             loadStorageStatus();
+            setInstalled(isInstalledPWA());
+            setInstallable(canInstallPWA());
         }
     }, [isOpen]);
 
@@ -68,6 +75,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             toast.success('ストレージの永続化が許可されました');
         } else {
             toast.warning('ブラウザによってブロックされました。ブラウザ設定でサイト権限を変更するか、定期的にバックアップをエクスポートしてください');
+        }
+    };
+
+    const handleInstall = async () => {
+        const result = await triggerInstall();
+        if (result === 'accepted') {
+            setInstallable(false);
+            setInstalled(true);
+            toast.success('アプリをインストールしました。データの永続化が有効になります');
         }
     };
 
@@ -167,8 +183,24 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                                     </button>
                                                 </div>
                                             )}
+                                            {(installable || installed) && (
+                                                <div className="flex items-center justify-between pt-1">
+                                                    <span className="text-zinc-600 dark:text-zinc-400">アプリとしてインストール</span>
+                                                    {installed ? (
+                                                        <span className="text-green-600 dark:text-green-400 font-medium text-sm">インストール済み</span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={handleInstall}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+                                                        >
+                                                            <MonitorSmartphone size={13} />
+                                                            インストール
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                             <p className="text-xs text-zinc-400 pt-1">
-                                                Safari では 7 日間未訪問でデータが削除される場合があります。定期的なエクスポートを推奨します。
+                                                アプリとしてインストールするとデータの永続化が保証されます。Safari では 7 日間未訪問でデータが削除される場合があります。
                                             </p>
                                         </>
                                     )}

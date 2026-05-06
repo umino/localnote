@@ -10,6 +10,11 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-if (location.protocol !== 'file:' && isStorageManagerSupported()) {
-  void requestPersist();
+if (location.protocol !== 'file:') {
+  if (isStorageManagerSupported()) void requestPersist();
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    });
+  }
 }
