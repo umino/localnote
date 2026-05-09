@@ -1,9 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { FileTree } from './FileTree';
-import { Plus, FolderPlus, Download, Upload, Settings } from 'lucide-react';
+import { Plus, FolderPlus, Download, Upload, Settings, Search, X } from 'lucide-react';
 import { exportData, importData } from '../utils/dataTransfer';
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
+import { SearchPanel } from './SearchPanel';
 import { SettingsModal } from './SettingsModal';
 import {
     DndContext,
@@ -254,6 +255,17 @@ export function Sidebar() {
     };
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchScope, setSearchScope] = useState<'all' | 'folder'>('all');
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const isSearching = searchQuery.trim().length > 0;
+
+    const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            setSearchQuery('');
+            searchInputRef.current?.blur();
+        }
+    }, []);
 
     return (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
@@ -275,35 +287,86 @@ export function Sidebar() {
                         </button>
                     </div>
 
-                    <div className="flex gap-2">
-                        <button
-                            onClick={exportData}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                            <Download size={14} /> Export
-                        </button>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                        >
-                            <Upload size={14} /> Import
-                        </button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleImport}
-                            className="hidden"
-                            accept=".json"
-                        />
+                    {/* Search input */}
+                    <div className="space-y-2">
+                        <div className="relative">
+                            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                placeholder="Search..."
+                                className="w-full pl-8 pr-7 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
+                        </div>
+                        {isSearching && (
+                            <div className="flex gap-1">
+                                <button
+                                    onClick={() => setSearchScope('all')}
+                                    className={`flex-1 py-1 text-xs rounded-md font-medium transition-colors ${searchScope === 'all' ? 'bg-primary-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                                >
+                                    全ページ
+                                </button>
+                                <button
+                                    onClick={() => setSearchScope('folder')}
+                                    className={`flex-1 py-1 text-xs rounded-md font-medium transition-colors ${searchScope === 'folder' ? 'bg-primary-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                                >
+                                    フォルダ下
+                                </button>
+                            </div>
+                        )}
                     </div>
+
+                    {!isSearching && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={exportData}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                            >
+                                <Download size={14} /> Export
+                            </button>
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                            >
+                                <Upload size={14} /> Import
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleImport}
+                                className="hidden"
+                                accept=".json"
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* Root Drop Zone */}
-                <RootDropZone />
+                {/* Root Drop Zone (ツリー表示時のみ) */}
+                {!isSearching && <RootDropZone />}
 
                 {/* Main Content */}
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
-                    <FileTree folders={folders || []} files={files || []} />
+                    {isSearching ? (
+                        <SearchPanel
+                            query={searchQuery}
+                            scope={searchScope}
+                            files={files || []}
+                            folders={folders || []}
+                        />
+                    ) : (
+                        <FileTree folders={folders || []} files={files || []} />
+                    )}
                 </div>
 
                 {/* Footer Settings */}
