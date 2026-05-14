@@ -1,5 +1,9 @@
-import { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useImperativeHandle, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import type { Node as PmNode } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -11,6 +15,93 @@ import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import { parseContent } from '../utils/content';
 
+// ─── Search highlight extension ──────────────────────────────────────────────
+declare module '@tiptap/core' {
+    interface Commands<ReturnType> {
+        searchHighlight: {
+            setSearchHighlight: (term: string) => ReturnType;
+        };
+    }
+}
+
+interface SearchHighlightState {
+    term: string;
+    decorations: DecorationSet;
+}
+
+const SearchHighlightKey = new PluginKey<SearchHighlightState>('searchHighlight');
+
+function buildDecorations(doc: PmNode, term: string): Decoration[] {
+    if (!term) return [];
+    const result: Decoration[] = [];
+    const termLower = term.toLowerCase();
+    doc.descendants((node, pos) => {
+        if (!node.isText || !node.text) return;
+        const textLower = node.text.toLowerCase();
+        let start = 0;
+        let idx: number;
+        while ((idx = textLower.indexOf(termLower, start)) !== -1) {
+            result.push(
+                Decoration.inline(pos + idx, pos + idx + term.length, {
+                    class: 'search-highlight',
+                })
+            );
+            start = idx + 1;
+        }
+    });
+    return result;
+}
+
+const SearchHighlightExtension = Extension.create({
+    name: 'searchHighlight',
+    addProseMirrorPlugins() {
+        return [
+            new Plugin({
+                key: SearchHighlightKey,
+                state: {
+                    init(): SearchHighlightState {
+                        return { term: '', decorations: DecorationSet.empty };
+                    },
+                    apply(tr, pluginState, _old, newState): SearchHighlightState {
+                        const meta = tr.getMeta(SearchHighlightKey) as { term: string } | undefined;
+                        const term = meta?.term !== undefined ? meta.term : pluginState.term;
+                        if (!term) return { term, decorations: DecorationSet.empty };
+                        return {
+                            term,
+                            decorations: DecorationSet.create(newState.doc, buildDecorations(newState.doc, term)),
+                        };
+                    },
+                },
+                props: {
+                    decorations(state) {
+                        return SearchHighlightKey.getState(state)?.decorations ?? DecorationSet.empty;
+                    },
+                },
+            }),
+        ];
+    },
+    addCommands() {
+        return {
+            setSearchHighlight:
+                (term: string) =>
+                ({ tr, dispatch, view }) => {
+                    if (dispatch) {
+                        tr.setMeta(SearchHighlightKey, { term });
+                        dispatch(tr);
+                    }
+                    if (term && view) {
+                        requestAnimationFrame(() => {
+                            const first = view.dom.querySelector<HTMLElement>('.search-highlight');
+                            first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        });
+                    }
+                    return true;
+                },
+        };
+    },
+});
+
+// ─── Component ───────────────────────────────────────────────────────────────
 export interface RichEditorHandle {
     setContent: (content: string) => void;
     getText: () => string;
@@ -28,10 +119,11 @@ export interface RichEditorHandle {
 interface RichEditorProps {
     initialContent: string;
     onChange: (content: string) => void;
+    highlightQuery?: string | null;
 }
 
 export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
-    ({ initialContent, onChange }, ref) => {
+    ({ initialContent, onChange, highlightQuery }, ref) => {
         const editor = useEditor({
             extensions: [
                 StarterKit,
@@ -48,6 +140,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 Placeholder.configure({ placeholder: 'Type something...' }),
                 TaskList,
                 TaskItem.configure({ nested: true }),
+                SearchHighlightExtension,
             ],
             content: parseContent(initialContent),
             onUpdate({ editor }) {
@@ -87,6 +180,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 },
             },
         });
+
+        useEffect(() => {
+            if (!editor) return;
+            editor.commands.setSearchHighlight(highlightQuery ?? '');
+        }, [editor, highlightQuery]);
 
         useImperativeHandle(ref, () => ({
             setContent: (content: string) => {

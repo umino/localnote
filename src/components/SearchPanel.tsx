@@ -59,7 +59,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 export function SearchPanel({ query, scope, files, folders }: SearchPanelProps) {
-    const { setActiveFileId, selectedFolderId } = useStore();
+    const { setActiveFileId, selectedFolderId, setSearchHighlightQuery } = useStore();
 
     const results = useMemo(() => {
         const q = query.trim();
@@ -111,7 +111,7 @@ export function SearchPanel({ query, scope, files, folders }: SearchPanelProps) 
                 {results.map(({ file, folderPath, snippet }) => (
                     <button
                         key={file.id}
-                        onClick={() => setActiveFileId(file.id!)}
+                        onClick={() => { setSearchHighlightQuery(query); setActiveFileId(file.id!); }}
                         className="w-full text-left px-2 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors"
                     >
                         <div className="flex items-center gap-1.5 min-w-0">

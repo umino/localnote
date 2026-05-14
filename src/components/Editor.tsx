@@ -17,7 +17,7 @@ const COLOR_PALETTE = [
 ];
 
 export function Editor() {
-    const { activeFileId } = useStore();
+    const { activeFileId, searchHighlightQuery } = useStore();
     const file = useLiveQuery(() => activeFileId ? db.files.get(activeFileId) : undefined, [activeFileId]);
     const [showHistory, setShowHistory] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -317,6 +317,7 @@ export function Editor() {
                     key={file.id}
                     initialContent={file.content}
                     onChange={handleContentChange}
+                    highlightQuery={searchHighlightQuery}
                 />
 
                 {showHistory && (

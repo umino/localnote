@@ -21,7 +21,7 @@ import { useStore } from '../store/useStore';
 export function Sidebar() {
     const folders = useLiveQuery(() => db.folders.toArray());
     const files = useLiveQuery(() => db.files.toArray());
-    const { selectedFolderId } = useStore();
+    const { selectedFolderId, setSearchHighlightQuery } = useStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const sensors = useSensors(
@@ -260,12 +260,17 @@ export function Sidebar() {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const isSearching = searchQuery.trim().length > 0;
 
+    const clearSearch = useCallback(() => {
+        setSearchQuery('');
+        setSearchHighlightQuery(null);
+    }, [setSearchHighlightQuery]);
+
     const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Escape') {
-            setSearchQuery('');
+            clearSearch();
             searchInputRef.current?.blur();
         }
-    }, []);
+    }, [clearSearch]);
 
     return (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
@@ -302,7 +307,7 @@ export function Sidebar() {
                             />
                             {searchQuery && (
                                 <button
-                                    onClick={() => setSearchQuery('')}
+                                    onClick={clearSearch}
                                     className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                                 >
                                     <X size={13} />

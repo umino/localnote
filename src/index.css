@@ -135,6 +135,18 @@ body {
   @apply border-none border-t-2 border-zinc-200 dark:border-zinc-700 my-6;
 }
 
+/* Search highlight */
+.tiptap-content .ProseMirror .search-highlight {
+  background-color: #fde68a;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+@media (prefers-color-scheme: dark) {
+  .tiptap-content .ProseMirror .search-highlight {
+    background-color: rgba(161, 140, 20, 0.55);
+  }
+}
+
 /* Placeholder */
 .tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
   color: #a1a1aa;
