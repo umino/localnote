@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -153,7 +154,20 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                         const anchor = target.closest('a');
                         const href = anchor?.getAttribute('href');
                         if (href) {
-                            window.open(href, '_blank', 'noopener,noreferrer');
+                            if (href.startsWith('file://')) {
+                                // Browsers block file:// navigation from http(s) contexts.
+                                // Copy the decoded path to clipboard as a reliable fallback.
+                                window.open(href, '_blank');
+                                const path = decodeURIComponent(
+                                    href.replace(/^file:\/\/\//i, '').replace(/^file:\/\//i, '//')
+                                );
+                                navigator.clipboard.writeText(path).then(
+                                    () => toast.info(`パスをコピーしました: ${path}`, { duration: 4000 }),
+                                    () => toast.error('クリップボードへのコピーに失敗しました'),
+                                );
+                            } else {
+                                window.open(href, '_blank', 'noopener,noreferrer');
+                            }
                             return true;
                         }
                     }

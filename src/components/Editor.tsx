@@ -7,6 +7,23 @@ import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2,
 import { HistoryPanel } from './HistoryPanel';
 import { RichEditor, type RichEditorHandle } from './RichEditor';
 
+function normalizeHref(raw: string): string {
+    const s = raw.trim();
+    if (!s) return s;
+    // Already has a URL scheme with //
+    if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(s)) return s;
+    // mailto: scheme
+    if (/^mailto:/i.test(s)) return s;
+    // Windows absolute path: C:\ or C:/
+    if (/^[A-Za-z]:[/\\]/.test(s)) return 'file:///' + s.replace(/\\/g, '/');
+    // UNC path: \\server\share
+    if (s.startsWith('\\\\')) return 'file:' + s.replace(/\\/g, '/');
+    // Unix/Mac absolute path
+    if (s.startsWith('/')) return 'file://' + s;
+    // Fallback: assume https
+    return 'https://' + s;
+}
+
 const COLOR_PALETTE = [
     { label: '赤', value: '#ef4444' },
     { label: 'オレンジ', value: '#f97316' },
@@ -250,12 +267,12 @@ export function Editor() {
                             <div className="absolute right-0 top-full mt-1 z-30 p-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl flex gap-1.5 min-w-[260px]">
                                 <input
                                     ref={linkInputRef}
-                                    type="url"
+                                    type="text"
                                     value={linkUrl}
                                     onChange={e => setLinkUrl(e.target.value)}
                                     onKeyDown={e => {
                                         if (e.key === 'Enter' && linkUrl) {
-                                            richEditorRef.current?.setLink(linkUrl);
+                                            richEditorRef.current?.setLink(normalizeHref(linkUrl));
                                             setShowLinkInput(false);
                                             setLinkUrl('');
                                         } else if (e.key === 'Escape') {
@@ -263,12 +280,12 @@ export function Editor() {
                                             setLinkUrl('');
                                         }
                                     }}
-                                    placeholder="https://..."
+                                    placeholder="https://... または C:\path\to\file"
                                     className="flex-1 text-sm px-2 py-1 bg-zinc-100 dark:bg-zinc-700 rounded border border-zinc-200 dark:border-zinc-600 outline-none focus:border-primary-400 text-zinc-900 dark:text-zinc-100"
                                 />
                                 <button
                                     onClick={() => {
-                                        if (linkUrl) richEditorRef.current?.setLink(linkUrl);
+                                        if (linkUrl) richEditorRef.current?.setLink(normalizeHref(linkUrl));
                                         setShowLinkInput(false);
                                         setLinkUrl('');
                                     }}
