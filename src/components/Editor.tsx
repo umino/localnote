@@ -1,4 +1,5 @@
 import { useStore } from '../store/useStore';
+import { normalizeHref } from '../utils/normalizeHref';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useEffect, useState, useRef } from 'react';
@@ -6,23 +7,6 @@ import { Toaster, toast } from 'sonner';
 import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2, Link2Off } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
 import { RichEditor, type RichEditorHandle } from './RichEditor';
-
-function normalizeHref(raw: string): string {
-    const s = raw.trim();
-    if (!s) return s;
-    // Already has a URL scheme with //
-    if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(s)) return s;
-    // mailto: scheme
-    if (/^mailto:/i.test(s)) return s;
-    // Windows absolute path: C:\ or C:/
-    if (/^[A-Za-z]:[/\\]/.test(s)) return 'file:///' + s.replace(/\\/g, '/');
-    // UNC path: \\server\share
-    if (s.startsWith('\\\\')) return 'file:' + s.replace(/\\/g, '/');
-    // Unix/Mac absolute path
-    if (s.startsWith('/')) return 'file://' + s;
-    // Fallback: assume https
-    return 'https://' + s;
-}
 
 const COLOR_PALETTE = [
     { label: '赤', value: '#ef4444' },

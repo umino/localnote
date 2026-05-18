@@ -15,6 +15,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import { parseContent } from '../utils/content';
+import { normalizeHref, isLocalPath } from '../utils/normalizeHref';
 
 // ─── Search highlight extension ──────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -135,6 +136,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                     openOnClick: false,
                     linkOnPaste: true,
                     autolink: true,
+                    protocols: ['file'],
                     HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
                 }),
                 Image.configure({ inline: false }),
@@ -174,23 +176,45 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                     return false;
                 },
                 handlePaste(view, event) {
+                    // Image paste
                     const items = Array.from(event.clipboardData?.items ?? []);
                     const imageItem = items.find(item => item.type.startsWith('image/'));
-                    if (!imageItem) return false;
-                    event.preventDefault();
-                    const file = imageItem.getAsFile();
-                    if (!file) return false;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const src = e.target?.result as string;
-                        if (!src) return;
-                        const { schema, tr } = view.state;
-                        const node = schema.nodes.image?.create({ src });
-                        if (!node) return;
-                        view.dispatch(tr.replaceSelectionWith(node));
-                    };
-                    reader.readAsDataURL(file);
-                    return true;
+                    if (imageItem) {
+                        event.preventDefault();
+                        const file = imageItem.getAsFile();
+                        if (!file) return false;
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const src = e.target?.result as string;
+                            if (!src) return;
+                            const { schema, tr } = view.state;
+                            const node = schema.nodes.image?.create({ src });
+                            if (!node) return;
+                            view.dispatch(tr.replaceSelectionWith(node));
+                        };
+                        reader.readAsDataURL(file);
+                        return true;
+                    }
+                    // Local file path paste: wrap selection or insert as linked text
+                    const text = event.clipboardData?.getData('text/plain')?.trim() ?? '';
+                    if (text && !text.includes('\n') && isLocalPath(text)) {
+                        const href = normalizeHref(text);
+                        const { state } = view;
+                        const linkMarkType = state.schema.marks.link;
+                        if (linkMarkType) {
+                            const { from, to, empty } = state.selection;
+                            const linkMark = linkMarkType.create({ href, target: '_blank', rel: 'noopener noreferrer' });
+                            const tr = state.tr;
+                            if (!empty) {
+                                tr.addMark(from, to, linkMark);
+                            } else {
+                                tr.replaceSelectionWith(state.schema.text(text, [linkMark]));
+                            }
+                            view.dispatch(tr);
+                            return true;
+                        }
+                    }
+                    return false;
                 },
             },
         });
