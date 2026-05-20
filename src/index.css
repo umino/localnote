@@ -122,6 +122,18 @@ body {
   @apply text-primary-700 dark:text-primary-300;
 }
 
+/* Internal page links */
+.tiptap-content .ProseMirror a[href^="note://"] {
+  color: #10b981;
+}
+.tiptap-content .ProseMirror a[href^="note://"]:hover {
+  color: #059669;
+}
+@media (prefers-color-scheme: dark) {
+  .tiptap-content .ProseMirror a[href^="note://"] { color: #34d399; }
+  .tiptap-content .ProseMirror a[href^="note://"]:hover { color: #6ee7b7; }
+}
+
 /* Images */
 .tiptap-content .ProseMirror img {
   max-width: 100%;

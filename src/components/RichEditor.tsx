@@ -15,7 +15,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import { parseContent } from '../utils/content';
-import { normalizeHref, isLocalPath } from '../utils/normalizeHref';
+import { normalizeHref, isLocalPath, parseInternalLinkId } from '../utils/normalizeHref';
 
 // ─── Search highlight extension ──────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -116,16 +116,18 @@ export interface RichEditorHandle {
     unsetLink: () => void;
     isLinkActive: () => boolean;
     getCurrentLink: () => string | null;
+    insertInternalLink: (fileId: number, title: string) => void;
 }
 
 interface RichEditorProps {
     initialContent: string;
     onChange: (content: string) => void;
     highlightQuery?: string | null;
+    onInternalLinkClick?: (fileId: number) => void;
 }
 
 export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
-    ({ initialContent, onChange, highlightQuery }, ref) => {
+    ({ initialContent, onChange, highlightQuery, onInternalLinkClick }, ref) => {
         const editor = useEditor({
             extensions: [
                 StarterKit,
@@ -136,7 +138,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                     openOnClick: false,
                     linkOnPaste: true,
                     autolink: true,
-                    protocols: ['file'],
+                    protocols: ['file', 'note'],
                     HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
                 }),
                 Image.configure({ inline: false }),
@@ -151,10 +153,19 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             },
             editorProps: {
                 handleClick(_view, _pos, event) {
+                    const target = event.target as HTMLElement;
+                    const anchor = target.closest('a');
+                    const href = anchor?.getAttribute('href');
+
+                    if (href?.startsWith('note://')) {
+                        // Internal page links: single click, prevent browser navigation
+                        event.preventDefault();
+                        const id = parseInternalLinkId(href);
+                        if (id !== null) onInternalLinkClick?.(id);
+                        return true;
+                    }
+
                     if (event.ctrlKey || event.metaKey) {
-                        const target = event.target as HTMLElement;
-                        const anchor = target.closest('a');
-                        const href = anchor?.getAttribute('href');
                         if (href) {
                             if (href.startsWith('file://')) {
                                 // Browsers block file:// navigation from http(s) contexts.
@@ -238,6 +249,23 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             unsetLink: () => { editor?.chain().focus().unsetLink().run(); },
             isLinkActive: () => editor?.isActive('link') ?? false,
             getCurrentLink: () => editor?.getAttributes('link').href ?? null,
+            insertInternalLink: (fileId: number, title: string) => {
+                if (!editor) return;
+                const href = `note://${fileId}`;
+                const { state, view } = editor;
+                const linkMarkType = state.schema.marks.link;
+                if (!linkMarkType) return;
+                const { from, to, empty } = state.selection;
+                const linkMark = linkMarkType.create({ href });
+                const tr = state.tr;
+                if (!empty) {
+                    tr.addMark(from, to, linkMark);
+                } else {
+                    tr.replaceSelectionWith(state.schema.text(title, [linkMark]));
+                }
+                view.dispatch(tr);
+                view.focus();
+            },
         }), [editor]);
 
         if (!editor) return null;

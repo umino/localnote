@@ -23,3 +23,12 @@ export function isLocalPath(s: string): boolean {
         (s.startsWith('/') && s.length > 1 && !s.startsWith('//'))
     );
 }
+
+export function isInternalLink(href: string): boolean {
+    return href.startsWith('note://');
+}
+
+export function parseInternalLinkId(href: string): number | null {
+    const id = parseInt(href.slice(7), 10);
+    return isNaN(id) ? null : id;
+}

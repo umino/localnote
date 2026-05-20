@@ -2,7 +2,7 @@ import { useStore } from '../store/useStore';
 import { normalizeHref } from '../utils/normalizeHref';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2, Link2Off } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
@@ -18,13 +18,17 @@ const COLOR_PALETTE = [
 ];
 
 export function Editor() {
-    const { activeFileId, searchHighlightQuery } = useStore();
+    const { activeFileId, searchHighlightQuery, setActiveFileId } = useStore();
     const file = useLiveQuery(() => activeFileId ? db.files.get(activeFileId) : undefined, [activeFileId]);
+    const allFiles = useLiveQuery(() => db.files.toArray(), []);
     const [showHistory, setShowHistory] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showLinkInput, setShowLinkInput] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
+    const [linkMode, setLinkMode] = useState<'url' | 'page'>('url');
+    const [pageSearch, setPageSearch] = useState('');
     const linkInputRef = useRef<HTMLInputElement>(null);
+    const pageSearchRef = useRef<HTMLInputElement>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const autoSaveIntervalRef = useRef<number>(30000);
     const lastSavedContentRef = useRef('');
@@ -106,6 +110,13 @@ export function Editor() {
             titleSaveTimeoutRef.current = null;
         }, 500);
     };
+
+    const closeLinkInput = useCallback(() => {
+        setShowLinkInput(false);
+        setLinkUrl('');
+        setLinkMode('url');
+        setPageSearch('');
+    }, []);
 
     const saveFile = async (id: number, newContent: string, updateLastSaved = true) => {
         try {
@@ -248,35 +259,85 @@ export function Editor() {
                             </button>
                         )}
                         {showLinkInput && (
-                            <div className="absolute right-0 top-full mt-1 z-30 p-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl flex gap-1.5 min-w-[260px]">
-                                <input
-                                    ref={linkInputRef}
-                                    type="text"
-                                    value={linkUrl}
-                                    onChange={e => setLinkUrl(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && linkUrl) {
-                                            richEditorRef.current?.setLink(normalizeHref(linkUrl));
-                                            setShowLinkInput(false);
-                                            setLinkUrl('');
-                                        } else if (e.key === 'Escape') {
-                                            setShowLinkInput(false);
-                                            setLinkUrl('');
-                                        }
-                                    }}
-                                    placeholder="https://... または C:\path\to\file"
-                                    className="flex-1 text-sm px-2 py-1 bg-zinc-100 dark:bg-zinc-700 rounded border border-zinc-200 dark:border-zinc-600 outline-none focus:border-primary-400 text-zinc-900 dark:text-zinc-100"
-                                />
-                                <button
-                                    onClick={() => {
-                                        if (linkUrl) richEditorRef.current?.setLink(normalizeHref(linkUrl));
-                                        setShowLinkInput(false);
-                                        setLinkUrl('');
-                                    }}
-                                    className="px-2 py-1 text-xs bg-primary-500 hover:bg-primary-600 text-white rounded transition-colors"
-                                >
-                                    設定
-                                </button>
+                            <div className="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl min-w-[280px]">
+                                {/* Tab */}
+                                <div className="flex border-b border-zinc-200 dark:border-zinc-700">
+                                    <button
+                                        onClick={() => { setLinkMode('url'); setTimeout(() => linkInputRef.current?.focus(), 50); }}
+                                        className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors rounded-tl-lg ${linkMode === 'url' ? 'bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+                                    >
+                                        URL
+                                    </button>
+                                    <button
+                                        onClick={() => { setLinkMode('page'); setTimeout(() => pageSearchRef.current?.focus(), 50); }}
+                                        className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors rounded-tr-lg ${linkMode === 'page' ? 'bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+                                    >
+                                        ページ
+                                    </button>
+                                </div>
+
+                                {linkMode === 'url' ? (
+                                    <div className="flex gap-1.5 p-2">
+                                        <input
+                                            ref={linkInputRef}
+                                            type="text"
+                                            value={linkUrl}
+                                            onChange={e => setLinkUrl(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && linkUrl) {
+                                                    richEditorRef.current?.setLink(normalizeHref(linkUrl));
+                                                    closeLinkInput();
+                                                } else if (e.key === 'Escape') {
+                                                    closeLinkInput();
+                                                }
+                                            }}
+                                            placeholder="https://... または C:\path\to\file"
+                                            className="flex-1 text-sm px-2 py-1 bg-zinc-100 dark:bg-zinc-700 rounded border border-zinc-200 dark:border-zinc-600 outline-none focus:border-primary-400 text-zinc-900 dark:text-zinc-100"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                if (linkUrl) richEditorRef.current?.setLink(normalizeHref(linkUrl));
+                                                closeLinkInput();
+                                            }}
+                                            className="px-2 py-1 text-xs bg-primary-500 hover:bg-primary-600 text-white rounded transition-colors"
+                                        >
+                                            設定
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="p-2 flex flex-col gap-1.5">
+                                        <input
+                                            ref={pageSearchRef}
+                                            type="text"
+                                            value={pageSearch}
+                                            onChange={e => setPageSearch(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Escape') closeLinkInput(); }}
+                                            placeholder="ページ名で検索..."
+                                            className="text-sm px-2 py-1 bg-zinc-100 dark:bg-zinc-700 rounded border border-zinc-200 dark:border-zinc-600 outline-none focus:border-primary-400 text-zinc-900 dark:text-zinc-100"
+                                        />
+                                        <div className="max-h-[160px] overflow-y-auto flex flex-col gap-0.5">
+                                            {(allFiles ?? [])
+                                                .filter(f => f.id !== activeFileId && f.title.toLowerCase().includes(pageSearch.toLowerCase()))
+                                                .slice(0, 10)
+                                                .map(f => (
+                                                    <button
+                                                        key={f.id}
+                                                        onClick={() => {
+                                                            richEditorRef.current?.insertInternalLink(f.id!, f.title || 'Untitled');
+                                                            closeLinkInput();
+                                                        }}
+                                                        className="text-left text-sm px-2 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 truncate transition-colors"
+                                                    >
+                                                        {f.title || 'Untitled'}
+                                                    </button>
+                                                ))
+                                            }
+                                            {(allFiles ?? []).filter(f => f.id !== activeFileId && f.title.toLowerCase().includes(pageSearch.toLowerCase())).length === 0 && (
+                                                <p className="text-xs text-zinc-400 px-2 py-1.5">ページが見つかりません</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -319,6 +380,7 @@ export function Editor() {
                     initialContent={file.content}
                     onChange={handleContentChange}
                     highlightQuery={searchHighlightQuery}
+                    onInternalLinkClick={(id) => setActiveFileId(id)}
                 />
 
                 {showHistory && (
