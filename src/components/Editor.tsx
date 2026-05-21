@@ -315,10 +315,10 @@ export function Editor() {
                                             placeholder="ページ名で検索..."
                                             className="text-sm px-2 py-1 bg-zinc-100 dark:bg-zinc-700 rounded border border-zinc-200 dark:border-zinc-600 outline-none focus:border-primary-400 text-zinc-900 dark:text-zinc-100"
                                         />
-                                        <div className="max-h-[160px] overflow-y-auto flex flex-col gap-0.5">
+                                        <div className="max-h-[280px] overflow-y-auto">
+                                            <div className="flex flex-col gap-0.5">
                                             {(allFiles ?? [])
                                                 .filter(f => f.id !== activeFileId && f.title.toLowerCase().includes(pageSearch.toLowerCase()))
-                                                .slice(0, 10)
                                                 .map(f => (
                                                     <button
                                                         key={f.id}
@@ -326,12 +326,13 @@ export function Editor() {
                                                             richEditorRef.current?.insertInternalLink(f.id!, f.title || 'Untitled');
                                                             closeLinkInput();
                                                         }}
-                                                        className="text-left text-sm px-2 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 truncate transition-colors"
+                                                        className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 truncate transition-colors"
                                                     >
                                                         {f.title || 'Untitled'}
                                                     </button>
                                                 ))
                                             }
+                                            </div>
                                             {(allFiles ?? []).filter(f => f.id !== activeFileId && f.title.toLowerCase().includes(pageSearch.toLowerCase())).length === 0 && (
                                                 <p className="text-xs text-zinc-400 px-2 py-1.5">ページが見つかりません</p>
                                             )}
