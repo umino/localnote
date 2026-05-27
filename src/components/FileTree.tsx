@@ -87,9 +87,8 @@ function DraggableFolder({ folder, isExpanded, isSelected, toggleFolder, handleD
                         : isSelected && !isDragging
                             ? 'bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100/80 dark:hover:bg-primary-900/30'
                             : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
-                    ${isDragging ? 'opacity-40 scale-[0.98] z-50' : 'opacity-100'}
+                    ${isDragging ? 'opacity-40 scale-[0.98] z-50 cursor-grabbing' : 'opacity-100 cursor-pointer'}
                     ${isOverSort && !isOverDrop ? 'border-t-2 border-primary-500' : ''}
-                    cursor-grab active:cursor-grabbing
                 `}
                 style={{
                     transform: CSS.Translate.toString(transform),
@@ -250,9 +249,8 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile, 
                 ${activeFileId === file.id
                     ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-100 shadow-sm'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
-                ${isDragging ? 'opacity-40 scale-[0.98] shadow-none z-50' : 'opacity-100'}
+                ${isDragging ? 'opacity-40 scale-[0.98] shadow-none z-50 cursor-grabbing' : 'opacity-100 cursor-pointer'}
                 ${isOverSort ? 'border-t-2 border-primary-500' : ''}
-                cursor-grab active:cursor-grabbing
             `}
             style={style}
         >

@@ -27,7 +27,7 @@ export function Sidebar() {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 5, // 5px movement required to start dragging
+                distance: 10,
             },
         })
     );
