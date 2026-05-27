@@ -16,7 +16,7 @@ interface FileTreeProps {
 }
 
 // Draggable/Sortable Item Components
-function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder, handleExportFolder, children }: any) {
+function DraggableFolder({ folder, isExpanded, isSelected, toggleFolder, handleDeleteFolder, handleExportFolder, children }: any) {
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [folderName, setFolderName] = React.useState(folder.name);
 
@@ -84,7 +84,9 @@ function DraggableFolder({ folder, isExpanded, toggleFolder, handleDeleteFolder,
                     flex items-center px-2 py-1.5 rounded-lg transition-all duration-300 group relative
                     ${isOverDrop
                         ? 'bg-primary-200 dark:bg-primary-900/50 ring-2 ring-primary-600 dark:ring-primary-400 ring-inset shadow-xl'
-                        : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
+                        : isSelected && !isDragging
+                            ? 'bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100/80 dark:hover:bg-primary-900/30'
+                            : 'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80'}
                     ${isDragging ? 'opacity-40 scale-[0.98] z-50' : 'opacity-100'}
                     ${isOverSort && !isOverDrop ? 'border-t-2 border-primary-500' : ''}
                     cursor-grab active:cursor-grabbing
@@ -285,6 +287,7 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile, 
                     onClick={(e) => {
                         e.stopPropagation();
                         setActiveFileId(file.id!);
+                        useStore.getState().setSelectedFolderId(file.folderId ?? null);
                     }}
                     onDoubleClick={(e) => {
                         e.stopPropagation();
@@ -324,7 +327,7 @@ function DraggableFile({ file, activeFileId, setActiveFileId, handleDeleteFile, 
 }
 
 export function FileTree({ folders, files, parentId = null, level = 0 }: FileTreeProps) {
-    const { expandedFolderIds, toggleFolder, activeFileId, setActiveFileId } = useStore();
+    const { expandedFolderIds, toggleFolder, activeFileId, setActiveFileId, selectedFolderId } = useStore();
 
     // Sort by order field
     const currentFolders = folders
@@ -359,6 +362,7 @@ export function FileTree({ folders, files, parentId = null, level = 0 }: FileTre
                             key={folder.id}
                             folder={folder}
                             isExpanded={isExpanded}
+                            isSelected={selectedFolderId === folder.id}
                             toggleFolder={toggleFolder}
                             handleDeleteFolder={handleDeleteFolder}
                             handleExportFolder={handleExportFolder}
