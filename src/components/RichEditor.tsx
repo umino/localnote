@@ -1,6 +1,6 @@
-import { forwardRef, useImperativeHandle, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -16,6 +16,74 @@ import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import { parseContent } from '../utils/content';
 import { normalizeHref, isLocalPath, parseInternalLinkId } from '../utils/normalizeHref';
+
+// ─── Resizable image ─────────────────────────────────────────────────────────
+function ResizableImageView({ node, updateAttributes }: { node: any; updateAttributes: (a: Record<string, unknown>) => void }) {
+    const imgRef = useRef<HTMLImageElement>(null);
+
+    const onResizeMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startWidth = node.attrs.width ?? imgRef.current?.offsetWidth ?? 300;
+
+        const onMove = (ev: MouseEvent) => {
+            const w = Math.max(40, Math.round(startWidth + ev.clientX - startX));
+            updateAttributes({ width: w });
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    };
+
+    return (
+        <NodeViewWrapper>
+            <div className="relative inline-block group/img max-w-full my-2" style={{ lineHeight: 0 }}>
+                <img
+                    ref={imgRef}
+                    src={node.attrs.src}
+                    alt={node.attrs.alt ?? ''}
+                    title={node.attrs.title ?? undefined}
+                    draggable={false}
+                    style={{
+                        width: node.attrs.width ? `${node.attrs.width}px` : undefined,
+                        height: 'auto',
+                        maxWidth: '100%',
+                        display: 'block',
+                        borderRadius: '0.5rem',
+                    }}
+                />
+                <div
+                    onMouseDown={onResizeMouseDown}
+                    className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-white dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-500 rounded-sm shadow cursor-se-resize opacity-0 group-hover/img:opacity-100 transition-opacity"
+                    title="ドラッグしてリサイズ"
+                />
+            </div>
+        </NodeViewWrapper>
+    );
+}
+
+const ResizableImage = Image.extend({
+    addAttributes() {
+        return {
+            ...this.parent?.(),
+            width: {
+                default: null,
+                parseHTML: el => {
+                    const w = el.getAttribute('width');
+                    return w ? parseInt(w, 10) : null;
+                },
+                renderHTML: attrs => attrs.width ? { width: String(attrs.width) } : {},
+            },
+        };
+    },
+    addNodeView() {
+        return ReactNodeViewRenderer(ResizableImageView);
+    },
+});
 
 // ─── Search highlight extension ──────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -141,7 +209,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                     protocols: ['file', 'note'],
                     HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
                 }),
-                Image.configure({ inline: false }),
+                ResizableImage.configure({ inline: false }),
                 Placeholder.configure({ placeholder: 'Type something...' }),
                 TaskList,
                 TaskItem.configure({ nested: true }),
