@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2, Link2Off } from 'lucide-react';
+import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2, Link2Off, Table as TableIcon } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
 import { RichEditor, type RichEditorHandle } from './RichEditor';
 
@@ -22,6 +22,7 @@ export function Editor() {
     const file = useLiveQuery(() => activeFileId ? db.files.get(activeFileId) : undefined, [activeFileId]);
     const allFiles = useLiveQuery(() => db.files.toArray(), []);
     const [showHistory, setShowHistory] = useState(false);
+    const [isInTable, setIsInTable] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showLinkInput, setShowLinkInput] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
@@ -358,6 +359,13 @@ export function Editor() {
                     >
                         <Copy size={18} />
                     </button>
+                    <button
+                        onClick={() => richEditorRef.current?.insertTable()}
+                        title="テーブルを挿入 (3×3)"
+                        className="p-2 text-zinc-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-all active:scale-95"
+                    >
+                        <TableIcon size={18} />
+                    </button>
                     <div className="w-px h-4 bg-zinc-200 dark:border-zinc-700 mx-0.5" />
                     <button
                         onClick={() => setShowHistory(!showHistory)}
@@ -374,6 +382,23 @@ export function Editor() {
                 </div>
             </header>
 
+            {/* Table toolbar — visible only when cursor is inside a table */}
+            {isInTable && (
+                <div className="flex flex-wrap items-center gap-1 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs">
+                    <span className="text-zinc-400 dark:text-zinc-500 mr-1 select-none">行:</span>
+                    <button onClick={() => richEditorRef.current?.addRowBefore()} className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="上に行を追加">↑ 追加</button>
+                    <button onClick={() => richEditorRef.current?.addRowAfter()}  className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="下に行を追加">↓ 追加</button>
+                    <button onClick={() => richEditorRef.current?.deleteRow()}    className="px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 dark:text-red-400 transition-colors" title="この行を削除">✕ 削除</button>
+                    <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-0.5" />
+                    <span className="text-zinc-400 dark:text-zinc-500 mr-1 select-none">列:</span>
+                    <button onClick={() => richEditorRef.current?.addColumnBefore()} className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="左に列を追加">← 追加</button>
+                    <button onClick={() => richEditorRef.current?.addColumnAfter()}  className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="右に列を追加">→ 追加</button>
+                    <button onClick={() => richEditorRef.current?.deleteColumn()}    className="px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 dark:text-red-400 transition-colors" title="この列を削除">✕ 削除</button>
+                    <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-0.5" />
+                    <button onClick={() => richEditorRef.current?.deleteTable()}    className="px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 dark:text-red-400 transition-colors" title="テーブルを削除">🗑 テーブル削除</button>
+                </div>
+            )}
+
             <div className="flex-1 flex overflow-hidden relative">
                 <RichEditor
                     ref={richEditorRef}
@@ -382,6 +407,7 @@ export function Editor() {
                     onChange={handleContentChange}
                     highlightQuery={searchHighlightQuery}
                     onInternalLinkClick={(id) => setActiveFileId(id)}
+                    onTableStateChange={setIsInTable}
                 />
 
                 {showHistory && (

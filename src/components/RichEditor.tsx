@@ -1,12 +1,19 @@
 import { forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
+import { useEditor, EditorContent, NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PmNode } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
+import { createLowlight, common } from 'lowlight';
+import dos from 'highlight.js/lib/languages/dos';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
@@ -84,6 +91,48 @@ const ResizableImage = Image.extend({
         return ReactNodeViewRenderer(ResizableImageView);
     },
 });
+
+// ─── Code block with syntax highlight ────────────────────────────────────────
+const lowlight = createLowlight(common);
+lowlight.register({ dos });
+
+const CODE_LANGUAGES = [
+    { value: 'plaintext', label: 'Plain Text' },
+    { value: 'cpp',        label: 'C++' },
+    { value: 'c',          label: 'C' },
+    { value: 'dos',        label: 'Batch (.bat)' },
+    { value: 'javascript', label: 'JavaScript' },
+    { value: 'typescript', label: 'TypeScript' },
+    { value: 'python',     label: 'Python' },
+    { value: 'bash',       label: 'Bash/Shell' },
+    { value: 'json',       label: 'JSON' },
+    { value: 'html',       label: 'HTML' },
+    { value: 'css',        label: 'CSS' },
+    { value: 'sql',        label: 'SQL' },
+    { value: 'rust',       label: 'Rust' },
+    { value: 'go',         label: 'Go' },
+];
+
+function CodeBlockView({ node, updateAttributes }: { node: any; updateAttributes: (a: Record<string, unknown>) => void }) {
+    return (
+        <NodeViewWrapper as="div" className="relative my-3">
+            <select
+                value={node.attrs.language ?? 'plaintext'}
+                onChange={e => updateAttributes({ language: e.target.value })}
+                contentEditable={false}
+                onMouseDown={e => e.stopPropagation()}
+                className="absolute top-2 right-2 z-10 text-xs px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 border-none cursor-pointer opacity-60 hover:opacity-100 focus:opacity-100 focus:outline-none transition-opacity"
+            >
+                {CODE_LANGUAGES.map(l => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+            </select>
+            <pre className="hljs">
+                <NodeViewContent />
+            </pre>
+        </NodeViewWrapper>
+    );
+}
 
 // ─── Search highlight extension ──────────────────────────────────────────────
 declare module '@tiptap/core' {
@@ -185,6 +234,14 @@ export interface RichEditorHandle {
     isLinkActive: () => boolean;
     getCurrentLink: () => string | null;
     insertInternalLink: (fileId: number, title: string) => void;
+    insertTable: () => void;
+    addRowBefore: () => void;
+    addRowAfter: () => void;
+    deleteRow: () => void;
+    addColumnBefore: () => void;
+    addColumnAfter: () => void;
+    deleteColumn: () => void;
+    deleteTable: () => void;
 }
 
 interface RichEditorProps {
@@ -192,13 +249,14 @@ interface RichEditorProps {
     onChange: (content: string) => void;
     highlightQuery?: string | null;
     onInternalLinkClick?: (fileId: number) => void;
+    onTableStateChange?: (inTable: boolean) => void;
 }
 
 export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
-    ({ initialContent, onChange, highlightQuery, onInternalLinkClick }, ref) => {
+    ({ initialContent, onChange, highlightQuery, onInternalLinkClick, onTableStateChange }, ref) => {
         const editor = useEditor({
             extensions: [
-                StarterKit,
+                StarterKit.configure({ codeBlock: false }),
                 Underline,
                 TextStyle,
                 Color,
@@ -213,11 +271,21 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 Placeholder.configure({ placeholder: 'Type something...' }),
                 TaskList,
                 TaskItem.configure({ nested: true }),
+                CodeBlockLowlight.configure({ lowlight, defaultLanguage: 'plaintext' }).extend({
+                    addNodeView() { return ReactNodeViewRenderer(CodeBlockView); },
+                }),
+                Table.configure({ resizable: true }),
+                TableRow,
+                TableHeader,
+                TableCell,
                 SearchHighlightExtension,
             ],
             content: parseContent(initialContent),
             onUpdate({ editor }) {
                 onChange(JSON.stringify(editor.getJSON()));
+            },
+            onSelectionUpdate({ editor }) {
+                onTableStateChange?.(editor.isActive('tableCell') || editor.isActive('tableHeader'));
             },
             editorProps: {
                 handleClick(_view, _pos, event) {
@@ -334,6 +402,16 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 view.dispatch(tr);
                 view.focus();
             },
+            insertTable: () => {
+                editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+            },
+            addRowBefore:    () => { editor?.chain().focus().addRowBefore().run(); },
+            addRowAfter:     () => { editor?.chain().focus().addRowAfter().run(); },
+            deleteRow:       () => { editor?.chain().focus().deleteRow().run(); },
+            addColumnBefore: () => { editor?.chain().focus().addColumnBefore().run(); },
+            addColumnAfter:  () => { editor?.chain().focus().addColumnAfter().run(); },
+            deleteColumn:    () => { editor?.chain().focus().deleteColumn().run(); },
+            deleteTable:     () => { editor?.chain().focus().deleteTable().run(); },
         }), [editor]);
 
         if (!editor) return null;

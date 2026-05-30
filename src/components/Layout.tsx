@@ -1,12 +1,39 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useStore } from '../store/useStore';
+import { db } from '../db';
 import { Sidebar } from './Sidebar';
 import { Editor } from './Editor';
 import { isStorageManagerSupported, isPersisted } from '../utils/storage';
 
 export function Layout() {
     const { isSidebarOpen } = useStore();
+
+    // Ctrl+Alt+N: 新規ファイル作成（Ctrl+N はブラウザ新規ウィンドウに専有されるため Alt を併用）
+    useEffect(() => {
+        const handler = async (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                const { selectedFolderId, expandedFolderIds, toggleFolder, setEditingItem, setActiveFileId } = useStore.getState();
+                const folderId = selectedFolderId ?? null;
+                const siblings = await db.files.filter(f => f.folderId === folderId).toArray();
+                const maxOrder = siblings.reduce((m, f) => Math.max(m, f.order ?? 0), 0);
+                const id = await db.files.add({
+                    folderId,
+                    title: 'Untitled',
+                    content: '',
+                    order: maxOrder + 1,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+                if (folderId && !expandedFolderIds.includes(folderId)) toggleFolder(folderId);
+                setEditingItem(id as number, 'file');
+                setActiveFileId(id as number);
+            }
+        };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, []);
 
     useEffect(() => {
         if (location.protocol === 'file:') return;
