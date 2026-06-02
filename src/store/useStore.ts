@@ -7,12 +7,14 @@ interface AppState {
     editingItemType: 'file' | 'folder' | null;  // Type of item being edited
     expandedFolderIds: number[];
     isSidebarOpen: boolean;
+    sidebarWidth: number;
     searchHighlightQuery: string | null;
     setActiveFileId: (id: number | null) => void;
     setSelectedFolderId: (id: number | null) => void;
     setEditingItem: (id: number | null, type: 'file' | 'folder' | null) => void;
     toggleFolder: (id: number) => void;
     setSidebarOpen: (isOpen: boolean) => void;
+    setSidebarWidth: (width: number) => void;
     setSearchHighlightQuery: (q: string | null) => void;
 }
 
@@ -23,6 +25,7 @@ export const useStore = create<AppState>((set) => ({
     editingItemType: null,
     expandedFolderIds: [],
     isSidebarOpen: true,
+    sidebarWidth: Number(localStorage.getItem('sidebarWidth')) || 280,
     searchHighlightQuery: null,
 
     setActiveFileId: (id) => set({ activeFileId: id }),
@@ -39,6 +42,11 @@ export const useStore = create<AppState>((set) => ({
         })),
 
     setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
+
+    setSidebarWidth: (width) => {
+        localStorage.setItem('sidebarWidth', String(width));
+        set({ sidebarWidth: width });
+    },
 
     setSearchHighlightQuery: (q) => set({ searchHighlightQuery: q }),
 }));

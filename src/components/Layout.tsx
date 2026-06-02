@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useStore } from '../store/useStore';
 import { db } from '../db';
@@ -7,7 +7,31 @@ import { Editor } from './Editor';
 import { isStorageManagerSupported, isPersisted } from '../utils/storage';
 
 export function Layout() {
-    const { isSidebarOpen } = useStore();
+    const { isSidebarOpen, sidebarWidth, setSidebarWidth } = useStore();
+
+    const handleResizeStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startWidth = useStore.getState().sidebarWidth;
+
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const newWidth = Math.max(180, Math.min(600, startWidth + (e.clientX - startX)));
+            setSidebarWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, [setSidebarWidth]);
 
     // Ctrl+Alt+N: 新規ファイル作成（Ctrl+N はブラウザ新規ウィンドウに専有されるため Alt を併用）
     useEffect(() => {
@@ -50,9 +74,15 @@ export function Layout() {
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950">
             {isSidebarOpen && (
-                <aside className="w-[280px] h-full glass border-r z-10 flex flex-col shadow-xl">
-                    <Sidebar />
-                </aside>
+                <>
+                    <aside className="h-full glass z-10 flex flex-col shadow-xl shrink-0" style={{ width: sidebarWidth }}>
+                        <Sidebar />
+                    </aside>
+                    <div
+                        className="w-1 h-full shrink-0 cursor-col-resize bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors z-20"
+                        onMouseDown={handleResizeStart}
+                    />
+                </>
             )}
             <main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-zinc-900 shadow-inner relative">
                 <Editor />
