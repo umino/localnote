@@ -134,14 +134,76 @@ function CodeBlockView({ node, updateAttributes }: { node: any; updateAttributes
     );
 }
 
-// ─── Search highlight extension ──────────────────────────────────────────────
+// ─── Indent extension ────────────────────────────────────────────────────────
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
+        indent: {
+            increaseIndent: () => ReturnType;
+            decreaseIndent: () => ReturnType;
+        };
         searchHighlight: {
             setSearchHighlight: (term: string) => ReturnType;
         };
     }
 }
+
+const INDENT_TYPES = ['paragraph', 'heading'];
+
+const Indent = Extension.create({
+    name: 'indent',
+
+    addGlobalAttributes() {
+        return [{
+            types: INDENT_TYPES,
+            attributes: {
+                indent: {
+                    default: 0,
+                    parseHTML: (el) => {
+                        const match = (el.getAttribute('style') ?? '').match(/margin-left:\s*([\d.]+)rem/);
+                        return match ? Math.round(parseFloat(match[1]) / 1.5) : 0;
+                    },
+                    renderHTML: (attrs) => attrs.indent
+                        ? { style: `margin-left: ${attrs.indent * 1.5}rem` }
+                        : {},
+                },
+            },
+        }];
+    },
+
+    addCommands() {
+        return {
+            increaseIndent: () => ({ tr, state, dispatch }) => {
+                const { from, to } = state.selection;
+                state.doc.nodesBetween(from, to, (node, pos) => {
+                    if (INDENT_TYPES.includes(node.type.name)) {
+                        const indent = Math.min((node.attrs.indent ?? 0) + 1, 8);
+                        if (dispatch) tr.setNodeMarkup(pos, undefined, { ...node.attrs, indent });
+                    }
+                });
+                return true;
+            },
+            decreaseIndent: () => ({ tr, state, dispatch }) => {
+                const { from, to } = state.selection;
+                state.doc.nodesBetween(from, to, (node, pos) => {
+                    if (INDENT_TYPES.includes(node.type.name)) {
+                        const indent = Math.max((node.attrs.indent ?? 0) - 1, 0);
+                        if (dispatch) tr.setNodeMarkup(pos, undefined, { ...node.attrs, indent });
+                    }
+                });
+                return true;
+            },
+        };
+    },
+
+    addKeyboardShortcuts() {
+        return {
+            'Mod-]': () => this.editor.commands.increaseIndent(),
+            'Mod-[': () => this.editor.commands.decreaseIndent(),
+        };
+    },
+});
+
+// ─── Search highlight extension ──────────────────────────────────────────────
 
 interface SearchHighlightState {
     term: string;
@@ -242,6 +304,8 @@ export interface RichEditorHandle {
     addColumnAfter: () => void;
     deleteColumn: () => void;
     deleteTable: () => void;
+    increaseIndent: () => void;
+    decreaseIndent: () => void;
 }
 
 interface RichEditorProps {
@@ -278,6 +342,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
                 TableRow,
                 TableHeader,
                 TableCell,
+                Indent,
                 SearchHighlightExtension,
             ],
             content: parseContent(initialContent),
@@ -412,6 +477,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             addColumnAfter:  () => { editor?.chain().focus().addColumnAfter().run(); },
             deleteColumn:    () => { editor?.chain().focus().deleteColumn().run(); },
             deleteTable:     () => { editor?.chain().focus().deleteTable().run(); },
+            increaseIndent:  () => { editor?.chain().focus().increaseIndent().run(); },
+            decreaseIndent:  () => { editor?.chain().focus().decreaseIndent().run(); },
         }), [editor]);
 
         if (!editor) return null;
