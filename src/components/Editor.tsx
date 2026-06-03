@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2, Link2Off, Table as TableIcon } from 'lucide-react';
+import { History, Copy, FileText, Underline as UnderlineIcon, Palette, X, Link2, Link2Off, Table as TableIcon, Indent as IndentIcon, Outdent as OutdentIcon } from 'lucide-react';
 import { HistoryPanel } from './HistoryPanel';
 import { RichEditor, type RichEditorHandle } from './RichEditor';
 
@@ -343,6 +343,24 @@ export function Editor() {
                             </div>
                         )}
                     </div>
+
+                    <div className="w-px h-4 bg-zinc-200 dark:border-zinc-700 mx-0.5" />
+
+                    {/* Indent */}
+                    <button
+                        onClick={() => richEditorRef.current?.decreaseIndent()}
+                        title="インデントを減らす (Ctrl+[)"
+                        className="p-2 rounded-md transition-all active:scale-95 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-zinc-700"
+                    >
+                        <OutdentIcon size={18} />
+                    </button>
+                    <button
+                        onClick={() => richEditorRef.current?.increaseIndent()}
+                        title="インデントを増やす (Ctrl+])"
+                        className="p-2 rounded-md transition-all active:scale-95 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-zinc-700"
+                    >
+                        <IndentIcon size={18} />
+                    </button>
 
                     <div className="w-px h-4 bg-zinc-200 dark:border-zinc-700 mx-0.5" />
                     <button
