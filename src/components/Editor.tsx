@@ -400,9 +400,9 @@ export function Editor() {
                 </div>
             </header>
 
-            {/* Table toolbar — visible only when cursor is inside a table */}
-            {isInTable && (
-                <div className="flex flex-wrap items-center gap-1 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs">
+            {/* Table toolbar — always rendered to prevent layout shift */}
+            <div className="flex flex-wrap items-center gap-1 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs">
+                <div className={`flex flex-wrap items-center gap-1 transition-opacity ${isInTable ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
                     <span className="text-zinc-400 dark:text-zinc-500 mr-1 select-none">行:</span>
                     <button onClick={() => richEditorRef.current?.addRowBefore()} className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="上に行を追加">↑ 追加</button>
                     <button onClick={() => richEditorRef.current?.addRowAfter()}  className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="下に行を追加">↓ 追加</button>
@@ -415,7 +415,7 @@ export function Editor() {
                     <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-0.5" />
                     <button onClick={() => richEditorRef.current?.deleteTable()}    className="px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 dark:text-red-400 transition-colors" title="テーブルを削除">🗑 テーブル削除</button>
                 </div>
-            )}
+            </div>
 
             <div className="flex-1 flex overflow-hidden relative">
                 <RichEditor
