@@ -314,10 +314,11 @@ interface RichEditorProps {
     highlightQuery?: string | null;
     onInternalLinkClick?: (fileId: number) => void;
     onTableStateChange?: (inTable: boolean) => void;
+    onBlockquoteStateChange?: (inBlockquote: boolean) => void;
 }
 
 export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
-    ({ initialContent, onChange, highlightQuery, onInternalLinkClick, onTableStateChange }, ref) => {
+    ({ initialContent, onChange, highlightQuery, onInternalLinkClick, onTableStateChange, onBlockquoteStateChange }, ref) => {
         const editor = useEditor({
             extensions: [
                 StarterKit.configure({ codeBlock: false }),
@@ -351,6 +352,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             },
             onSelectionUpdate({ editor }) {
                 onTableStateChange?.(editor.isActive('tableCell') || editor.isActive('tableHeader'));
+                onBlockquoteStateChange?.(editor.isActive('blockquote'));
             },
             editorProps: {
                 handleClick(_view, _pos, event) {
