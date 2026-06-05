@@ -23,6 +23,7 @@ export function Editor() {
     const allFiles = useLiveQuery(() => db.files.toArray(), []);
     const [showHistory, setShowHistory] = useState(false);
     const [isInTable, setIsInTable] = useState(false);
+    const [isInCodeBlock, setIsInCodeBlock] = useState(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showLinkInput, setShowLinkInput] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
@@ -415,6 +416,12 @@ export function Editor() {
                     <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-0.5" />
                     <button onClick={() => richEditorRef.current?.deleteTable()}    className="px-2 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 dark:text-red-400 transition-colors" title="テーブルを削除">🗑 テーブル削除</button>
                 </div>
+                <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-2" />
+                <div className={`flex items-center gap-1 transition-opacity ${isInCodeBlock ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+                    <span className="text-zinc-400 dark:text-zinc-500 mr-1 select-none">コード:</span>
+                    <button onClick={() => richEditorRef.current?.outdentInCode()} className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="タブを削除">← タブ</button>
+                    <button onClick={() => richEditorRef.current?.indentInCode()}  className="px-2 py-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors" title="タブを挿入">→ タブ</button>
+                </div>
             </div>
 
             <div className="flex-1 flex overflow-hidden relative">
@@ -426,6 +433,7 @@ export function Editor() {
                     highlightQuery={searchHighlightQuery}
                     onInternalLinkClick={(id) => setActiveFileId(id)}
                     onTableStateChange={setIsInTable}
+                    onCodeBlockStateChange={setIsInCodeBlock}
                 />
 
                 {showHistory && (

@@ -306,6 +306,8 @@ export interface RichEditorHandle {
     deleteTable: () => void;
     increaseIndent: () => void;
     decreaseIndent: () => void;
+    indentInCode: () => void;
+    outdentInCode: () => void;
 }
 
 interface RichEditorProps {
@@ -314,10 +316,11 @@ interface RichEditorProps {
     highlightQuery?: string | null;
     onInternalLinkClick?: (fileId: number) => void;
     onTableStateChange?: (inTable: boolean) => void;
+    onCodeBlockStateChange?: (inCodeBlock: boolean) => void;
 }
 
 export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
-    ({ initialContent, onChange, highlightQuery, onInternalLinkClick, onTableStateChange }, ref) => {
+    ({ initialContent, onChange, highlightQuery, onInternalLinkClick, onTableStateChange, onCodeBlockStateChange }, ref) => {
         const editor = useEditor({
             extensions: [
                 StarterKit.configure({ codeBlock: false }),
@@ -436,6 +439,20 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             editor.commands.setSearchHighlight(highlightQuery ?? '');
         }, [editor, highlightQuery]);
 
+        useEffect(() => {
+            if (!editor || !onCodeBlockStateChange) return;
+            const handler = () => {
+                const { $from } = editor.state.selection;
+                let found = false;
+                for (let d = $from.depth; d >= 0; d--) {
+                    if ($from.node(d).type.name === 'codeBlock') { found = true; break; }
+                }
+                onCodeBlockStateChange(found);
+            };
+            editor.on('selectionUpdate', handler);
+            return () => void editor.off('selectionUpdate', handler);
+        }, [editor, onCodeBlockStateChange]);
+
         useImperativeHandle(ref, () => ({
             setContent: (content: string) => {
                 editor?.commands.setContent(parseContent(content), { emitUpdate: false });
@@ -479,6 +496,22 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             deleteTable:     () => { editor?.chain().focus().deleteTable().run(); },
             increaseIndent:  () => { editor?.chain().focus().increaseIndent().run(); },
             decreaseIndent:  () => { editor?.chain().focus().decreaseIndent().run(); },
+            indentInCode: () => {
+                editor?.chain().focus().insertContent('\t').run();
+            },
+            outdentInCode: () => {
+                if (!editor) return;
+                const { state, view } = editor;
+                const { from } = state.selection;
+                const lineStart = state.doc.resolve(from).start();
+                const lineText = state.doc.textBetween(lineStart, from);
+                if (lineText.endsWith('\t')) {
+                    view.dispatch(state.tr.delete(from - 1, from));
+                } else {
+                    const spaces = lineText.match(/ +$/)?.[0].length ?? 0;
+                    if (spaces > 0) view.dispatch(state.tr.delete(from - Math.min(spaces, 4), from));
+                }
+            },
         }), [editor]);
 
         if (!editor) return null;
