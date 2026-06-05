@@ -352,7 +352,6 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             },
             onSelectionUpdate({ editor }) {
                 onTableStateChange?.(editor.isActive('tableCell') || editor.isActive('tableHeader'));
-                onBlockquoteStateChange?.(editor.isActive('blockquote'));
             },
             editorProps: {
                 handleClick(_view, _pos, event) {
@@ -437,6 +436,20 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(
             if (!editor) return;
             editor.commands.setSearchHighlight(highlightQuery ?? '');
         }, [editor, highlightQuery]);
+
+        useEffect(() => {
+            if (!editor || !onBlockquoteStateChange) return;
+            const handler = () => {
+                const { $from } = editor.state.selection;
+                let found = false;
+                for (let d = $from.depth; d >= 0; d--) {
+                    if ($from.node(d).type.name === 'blockquote') { found = true; break; }
+                }
+                onBlockquoteStateChange(found);
+            };
+            editor.on('selectionUpdate', handler);
+            return () => void editor.off('selectionUpdate', handler);
+        }, [editor, onBlockquoteStateChange]);
 
         useImperativeHandle(ref, () => ({
             setContent: (content: string) => {
